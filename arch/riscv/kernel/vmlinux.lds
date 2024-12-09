@@ -19,6 +19,7 @@ SECTIONS {
         _stext = .;
 
         *(.text.init)
+        *(.text.entry)
         *(.text .text.*)
 
         _etext = .;
@@ -41,6 +42,8 @@ SECTIONS {
     }
 
     .bss : ALIGN(0x1000) {
+        *(.bss.stack)
+        . = ALIGN(0x1000);
         _sbss = .;
 
         *(.bss .bss.*)
