@@ -18,7 +18,7 @@ void *alloc_page(void) {
 
 void free_pages(void *addr) {
   struct kfreelist *r = (void *)PGROUNDDOWN((uintptr_t)addr);
-  memset(r, 0xfa, PGSIZE);
+  // memset(r, 0xfa, PGSIZE);
   r->next = kfreelist;
   kfreelist = r;
 }

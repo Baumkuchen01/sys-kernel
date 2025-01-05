@@ -23,7 +23,8 @@ void dummy_task(void) {
         current->counter = 0;
       }
       prev_cnt = current->counter;
-      printk("[PID = %" PRIu64 "] Running. local = %u\n", current->pid, ++local);
+      // printk("[PID = %" PRIu64 "] Running. local = %u\n", current->pid, ++local);
+      printk("[P=%u] %u\n", current->pid, ++local);
     }
   }
 }
@@ -65,7 +66,7 @@ void task_init(void){
       task[i]->priority = PRIORITY_MIN + rand() % (PRIORITY_MAX - PRIORITY_MIN + 1);
       task[i]->counter = 0;
       task[i]->thread.ra = __dummy;
-      task[i]->thread.sp = task[i] + PGSIZE;
+      task[i]->thread.sp = (void*)task[i] + 0x1000;
   }
 
   printk("...task_init done!\n");
@@ -96,10 +97,10 @@ void schedule(void) {
     for (int i = 1; i < NR_TASKS; i++)
     {
       task[i]->counter = (task[i]->counter >> 1) + task[i]->priority;
-      printk("SET [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", task[i]->pid, task[i]->priority, task[i]->counter);
+      // printk("SET [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", task[i]->pid, task[i]->priority, task[i]->counter);
     }
   }
-  printk("switch to [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", next->pid, next->priority, next->counter);
+  // printk("switch to [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", next->pid, next->priority, next->counter);
   switch_to(next);
 }
 

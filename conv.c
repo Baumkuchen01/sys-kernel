@@ -31,8 +31,7 @@ void conv_compute(const uint64_t* data_array, size_t data_len, const uint64_t* k
     conv_kernel_init(kernel_array, kernel_len);
     for (int i = -3; i < (int)(data_len + kernel_len - 1); i++)
     {
-        // while (!(CONV_BASE[CONV_STATE_OFFSET] & READY_MASK))
-        //     ;
+        while (!(CONV_BASE[CONV_STATE_OFFSET] & READY_MASK));
         uint64_t data = (i >= 0 && i < data_len) ? data_array[i] : 0;
         conv_compute_one_byte(data);
         if (i >= 0)
