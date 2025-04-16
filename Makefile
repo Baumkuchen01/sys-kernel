@@ -15,7 +15,7 @@ export CFLAGS := -march=$(ISA) -mabi=$(ABI) -mcmodel=medany \
 	-Wall -Wextra -std=gnu11
 export LDFLAGS := -lgcc -Wl,--nmagic -Wl,--gc-sections
 
-.PHONY: all run debug clean spike_run spike_debug spike_bridge
+.PHONY: all run debug snprintf clean spike_run spike_debug spike_bridge
 
 all:
 	$(MAKE) -C lib all
@@ -37,6 +37,13 @@ debug: all
 	# Launch the qemu for debug ......
 	qemu-system-riscv64 -nographic -machine virt -kernel vmlinux -bios $(SPIKE_CONF)/fw_jump.bin -S -s
 
+SNPRINTF_TEST_DIR := $(realpath $(CURDIR)/../../../repo/sys-project/testcode/snprintf)
+SNPRINTF_MAKEFILE := $(CURDIR)/lib/Makefile
+snprintf: all
+	$(MAKE) -C "$(SNPRINTF_TEST_DIR)" -f "$(SNPRINTF_MAKEFILE)" all
+	$(LD) -T "$(SNPRINTF_TEST_DIR)/link.ld" arch/riscv/kernel/sbi.o arch/riscv/kernel/printk.o lib/*.o "$(SNPRINTF_TEST_DIR)"/*.o -o snprintf_test
+	qemu-system-riscv64 -smp 8 -nographic -machine virt -kernel ./snprintf_test -bios $(SPIKE_CONF)/fw_jump.bin
+
 spike_run: all
 	spike --kernel=arch/riscv/boot/Image $(SPIKE_CONF)/fw_jump.elf
 
@@ -49,5 +56,6 @@ spike_bridge:
 clean:
 	$(MAKE) -C lib clean
 	$(MAKE) -C arch/riscv clean
-	rm -rf vmlinux vmlinux.asm System.map arch/riscv/boot
+	$(MAKE) -C "$(SNPRINTF_TEST_DIR)" -f "$(SNPRINTF_MAKEFILE)" clean
+	rm -rf vmlinux vmlinux.asm snprintf_test System.map arch/riscv/boot
 	# Clean finished!

@@ -5,6 +5,9 @@
 #include <stdarg.h>
 
 typedef struct FILE {
+  char *str;
+  int size;
+  int offset;
   int (*write)(struct FILE *, const void *, size_t);
 } FILE;
 
