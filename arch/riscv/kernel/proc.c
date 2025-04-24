@@ -23,14 +23,14 @@ void dummy_task(void) {
         current->counter = 0;
       }
       prev_cnt = current->counter;
-      // printk("[PID = %" PRIu64 "] Running. local = %u\n", current->pid, ++local);
-      printk("[P=%u] %u\n", current->pid, ++local);
+      printk("[PID = %" PRIu64 "] Running. local = %u\n", current->pid, ++local);
+      // printk("[P=%u] %u\n", current->pid, ++local);
     }
   }
 }
 
 void task_init(void){
-  srand(2024);
+  srand(2025);
 
   // 1. 调用 alloc_page() 为 idle 分配一个物理页
   idle = (struct task_struct *)alloc_page();
@@ -97,10 +97,10 @@ void schedule(void) {
     for (int i = 1; i < NR_TASKS; i++)
     {
       task[i]->counter = (task[i]->counter >> 1) + task[i]->priority;
-      // printk("SET [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", task[i]->pid, task[i]->priority, task[i]->counter);
+      printk("SET [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", task[i]->pid, task[i]->priority, task[i]->counter);
     }
   }
-  // printk("switch to [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", next->pid, next->priority, next->counter);
+  printk("switch to [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", next->pid, next->priority, next->counter);
   switch_to(next);
 }
 
