@@ -1,0 +1,7 @@
+*.o
+*.d
+*.asm
+vmlinux
+System.map
+arch/riscv/boot/Image
+

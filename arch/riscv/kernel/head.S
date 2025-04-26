@@ -58,5 +58,7 @@ relocate:
     or t1, t1, t2
     csrw satp, t1
 
+    ret 
+    
     .section .bss.stack
     .space PGSIZE
