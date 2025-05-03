@@ -10,11 +10,25 @@
 #define PRIORITY_MIN 1
 #define PRIORITY_MAX 10
 
+typedef uint64_t *pagetable_t;
+
+// 中断处理所需寄存器堆
+struct pt_regs {
+  uint64_t x[32];
+  uint64_t sepc;
+};
+
 // 线程状态结构
 struct thread_struct {
   uint64_t ra;
   uint64_t sp;
   uint64_t s[12];
+
+  uint64_t sepc;
+  uint64_t sstatus;
+  uint64_t sscratch;
+  uint64_t stval;
+  uint64_t scause;
 };
 
 // 进程数据结构
@@ -25,6 +39,8 @@ struct task_struct {
   uint64_t counter;  // 剩余时间
 
   struct thread_struct thread; // 线程结构
+
+  pagetable_t pgd; // 页表
 };
 
 /**

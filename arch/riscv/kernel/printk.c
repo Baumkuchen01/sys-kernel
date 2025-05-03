@@ -6,7 +6,7 @@
 #define VA2PA(x) ((uint64_t)(x) - PA2VA_OFFSET)
 #define PA2VA(x) ((uint64_t)(x) + PA2VA_OFFSET)
 
-static size_t printk_sbi_write(FILE *restrict fp, const void *restrict buf, size_t len) {
+static int printk_sbi_write(FILE *restrict fp, const void *restrict buf, size_t len) {
   (void)fp;
 
   // 调用 SBI 接口输出 buf 中长度为 len 的内容

@@ -83,14 +83,14 @@ void create_mapping(uint64_t pgtbl[static PGSIZE / 8], void *va, void *pa, uint6
       pgtbl[vpn2] = (newpage >> 12 << 10) | PTE_V;
     }
 
-    uint64_t *pgtbl1 = (uint64_t *)((uint64_t)pgtbl[vpn2] >> 10 << 12);
+    uint64_t *pgtbl1 = (uint64_t *)(pgtbl[vpn2] >> 10 << 12);
 
     if (!(pgtbl1[vpn1] & PTE_V)) {
       uint64_t newpage = VA2PA(alloc_page());
       pgtbl1[vpn1] = (newpage >> 12 << 10) | PTE_V;
     }
 
-    uint64_t *pgtbl0 = (uint64_t *)((uint64_t)pgtbl1[vpn1] >> 10 << 12);
+    uint64_t *pgtbl0 = (uint64_t *)(pgtbl1[vpn1] >> 10 << 12);
     pgtbl0[vpn0] = (PA >> 12 << 10) | perm | PTE_V | PTE_A | PTE_D;
 
     VA += PGSIZE;

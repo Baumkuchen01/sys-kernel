@@ -6,8 +6,8 @@
 
 typedef struct FILE {
   char *str;
-  int size;
-  int offset;
+  size_t size;
+  size_t offset;
   int (*write)(struct FILE *, const void *, size_t);
 } FILE;
 
@@ -18,5 +18,6 @@ typedef struct FILE {
 extern FILE __iob[3];
 
 int vfprintf(FILE *restrict f, const char *restrict fmt, va_list ap);
+int printf(const char *restrict fmt, ...);
 
 #endif

@@ -25,3 +25,6 @@
 
 #define TS_OFF 32
 #endif
+
+#define USER_START 0x0        // user space start virtual address
+#define USER_END 0x4000000000 // user space end virtual address

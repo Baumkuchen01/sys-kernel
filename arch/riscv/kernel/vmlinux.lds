@@ -56,6 +56,12 @@ SECTIONS
         *(.got .got.*)
 
         _edata = .;
+
+        . = ALIGN(0x1000);
+        _suapp = .;
+        *(.uapp .uapp*)
+        _euapp = .;
+        . = ALIGN(0x1000);
     } >ramv AT>ram
 
     .bss : ALIGN(0x1000) {
