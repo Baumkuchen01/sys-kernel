@@ -14,6 +14,9 @@ void syscall_handler(struct pt_regs *regs) {
         case __NR_getpid:
             regs->x[10] = sys_getpid();
             break;
+        case __NR_clone:
+            regs->x[10] = sys_clone(regs);
+            break;
         default:
             printk("Unknown syscall: %lu\n", syscall_num);
             break;
@@ -32,4 +35,8 @@ long sys_write(unsigned fd, const char *buf, size_t count) {
 
 long sys_getpid(void) {
     return current->pid;
+}
+
+long sys_clone(struct pt_regs *regs) {
+    return do_fork(regs);
 }

@@ -54,6 +54,7 @@ _traps:
     # 2. 调用 trap_handler
     call trap_handler
 
+restore:
     # 3. 恢复寄存器和 sepc
     #    特别注意 sp 寄存器的恢复
     ld x1, 1 * 8(sp)
@@ -109,7 +110,7 @@ _traps:
 
     .globl __switch_to
   __switch_to:
-    # 1. 将当前线程的上下文保存到当前线程的 thre_struct 中
+    # 1. 将当前线程的上下文保存到当前线程的 thread_struct 中
     sd ra, (TS_OFF + 0 * 8)(a0)
     sd sp, (TS_OFF + 1 * 8)(a0)
     sd s0, (TS_OFF + 2 * 8)(a0)
@@ -169,3 +170,7 @@ _traps:
     sfence.vma
 
     ret
+
+    .globl ret_from_fork
+ret_from_fork:
+    j restore

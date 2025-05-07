@@ -4,21 +4,6 @@
 #include <private_kdefs.h>
 #include <printk.h>
 
-#define VPN0(x) (((uint64_t)(x) >> 12) & 0x1ff)
-#define VPN1(x) (((uint64_t)(x) >> 21) & 0x1ff)
-#define VPN2(x) (((uint64_t)(x) >> 30) & 0x1ff)
-#define VA2PA(x) ((uint64_t)(x) - PA2VA_OFFSET)
-#define PA2VA(x) ((uint64_t)(x) + PA2VA_OFFSET)
-
-#define PTE_V 0x001
-#define PTE_R 0x002
-#define PTE_W 0x004
-#define PTE_X 0x008
-#define PTE_U 0x010
-#define PTE_G 0x020
-#define PTE_A 0x040
-#define PTE_D 0x080
-
 extern uint8_t _stext[], _stext_end[], _srodata[], _sdata[], _sbss[];
 
 // 用于 setup_vm 进行 1 GiB 的映射
@@ -91,6 +76,39 @@ void create_mapping(uint64_t pgtbl[static PGSIZE / 8], void *va, void *pa, uint6
     }
 
     uint64_t *pgtbl0 = (uint64_t *)(pgtbl1[vpn1] >> 10 << 12);
+    pgtbl0[vpn0] = (PA >> 12 << 10) | perm | PTE_V | PTE_A | PTE_D;
+
+    VA += PGSIZE;
+    PA += PGSIZE;
+  }
+  
+  printk("pgtbl = %p: map [%p, %p) -> [%p, %p), perm = 0x%lx, size = %lu\n", 
+         (void *)VA2PA(pgtbl), va, (void *)((uint64_t)va + sz), pa, (void *)((uint64_t)pa + sz), perm, sz);
+  return;
+}
+
+void vm_create_mapping(uint64_t pgtbl[static PGSIZE / 8], void *va, void *pa, uint64_t sz, uint64_t perm) {
+
+  uint64_t VA = (uint64_t)va, PA = (uint64_t)pa;
+  while (VA < (uint64_t)va + sz)
+  {
+    uint64_t vpn0 = VPN0(VA);
+    uint64_t vpn1 = VPN1(VA);
+    uint64_t vpn2 = VPN2(VA);
+
+    if (!(pgtbl[vpn2] & PTE_V)) {
+      uint64_t newpage = VA2PA(alloc_page());
+      pgtbl[vpn2] = (newpage >> 12 << 10) | PTE_V;
+    }
+
+    uint64_t *pgtbl1 = (uint64_t *)PA2VA((pgtbl[vpn2] >> 10 << 12));
+
+    if (!(pgtbl1[vpn1] & PTE_V)) {
+      uint64_t newpage = VA2PA(alloc_page());
+      pgtbl1[vpn1] = (newpage >> 12 << 10) | PTE_V;
+    }
+
+    uint64_t *pgtbl0 = (uint64_t *)PA2VA((pgtbl1[vpn1] >> 10 << 12));
     pgtbl0[vpn0] = (PA >> 12 << 10) | perm | PTE_V | PTE_A | PTE_D;
 
     VA += PGSIZE;

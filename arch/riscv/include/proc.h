@@ -2,11 +2,12 @@
 #define __PROC_H__
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define TASK_RUNNING 0 // 为了简化实验，所有的线程都只有一种状态
 
 // 可自行修改的宏定义
-#define NR_TASKS (1 + 4) // idle 线程 + 用户线程
+#define NR_TASKS (1 + 8) // idle 线程 + 用户线程
 #define PRIORITY_MIN 1
 #define PRIORITY_MAX 10
 
@@ -31,6 +32,41 @@ struct thread_struct {
   uint64_t scause;
 };
 
+struct vm_area_struct {
+  /**
+   * @brief The mm_struct we belong to.
+   */
+  struct mm_struct *vm_mm;
+
+  /**
+   * @brief Our start address within vm_mm.
+   */
+  void *vm_start;
+
+  /**
+   * @brief The past-the-end address within vm_mm.
+   */
+  void *vm_end;
+
+  /**
+   * @brief Flags as listed above.
+   */
+  unsigned vm_flags;
+
+  /**
+   * @brief linked list of VM areas per task, sorted by address.
+   */
+  struct vm_area_struct *vm_prev;
+  struct vm_area_struct *vm_next;
+};
+
+struct mm_struct {
+  /**
+   * @brief list of VMAs.
+   */
+  struct vm_area_struct *mmap;
+};
+
 // 进程数据结构
 struct task_struct {
   uint64_t pid;      // 进程 ID
@@ -41,6 +77,8 @@ struct task_struct {
   struct thread_struct thread; // 线程结构
 
   pagetable_t pgd; // 页表
+
+  struct mm_struct *mm;
 };
 
 /**
@@ -69,5 +107,29 @@ void switch_to(struct task_struct *next);
  * @brief 空闲线程函数
  */
 void dummy_task(void);
+
+/**
+ * @brief 遍历 mm，寻找 va 所在的 vm_area_struct
+ *
+ * @param mm 进程的 mm_struct
+ * @param va 虚拟地址
+ *
+ * @return va 所在的 vm_area_struct 结构体指针，若未找到则返回 NULL
+ */
+struct vm_area_struct *find_vma(struct mm_struct *mm, void *va);
+
+/**
+ * @brief 向 mm 中添加一个 vm_area_struct
+ *
+ * @param mm 进程的 mm_struct
+ * @param vm 要添加的 vm_area_struct 的起始地址
+ * @param len vm_area_struct 记录的长度
+ * @param flags vm_area_struct 的权限位
+ *
+ * @return 该映射的起始地址
+ */
+void *do_mmap(struct mm_struct *mm, void *va, size_t len, unsigned flags);
+long do_fork(struct pt_regs *regs);
+uint64_t walk_page_table(uint64_t *pgd, uint64_t va);
 
 #endif

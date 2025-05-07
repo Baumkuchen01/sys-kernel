@@ -3,9 +3,6 @@
 #include <sbi.h> 
 #include <private_kdefs.h>
 
-#define VA2PA(x) ((uint64_t)(x) - PA2VA_OFFSET)
-#define PA2VA(x) ((uint64_t)(x) + PA2VA_OFFSET)
-
 static int printk_sbi_write(FILE *restrict fp, const void *restrict buf, size_t len) {
   (void)fp;
 

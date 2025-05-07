@@ -26,5 +26,6 @@ void setup_vm_final(void);
  * @param perm 映射的读写权限
  */
 void create_mapping(uint64_t pgtbl[static PGSIZE / 8], void *va, void *pa, uint64_t sz, uint64_t perm);
+void vm_create_mapping(uint64_t pgtbl[static PGSIZE / 8], void *va, void *pa, uint64_t sz, uint64_t perm);
 
 #endif

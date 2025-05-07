@@ -4,22 +4,8 @@
 #include <printk.h>
 #include <stdlib.h>
 #include <sbi.h>
+#include <vm.h>
 #include <string.h>
-
-#define VPN0(x) (((uint64_t)(x) >> 12) & 0x1ff)
-#define VPN1(x) (((uint64_t)(x) >> 21) & 0x1ff)
-#define VPN2(x) (((uint64_t)(x) >> 30) & 0x1ff)
-#define VA2PA(x) ((uint64_t)(x) - PA2VA_OFFSET)
-#define PA2VA(x) ((uint64_t)(x) + PA2VA_OFFSET)
-
-#define PTE_V 0x001
-#define PTE_R 0x002
-#define PTE_W 0x004
-#define PTE_X 0x008
-#define PTE_U 0x010
-#define PTE_G 0x020
-#define PTE_A 0x040
-#define PTE_D 0x080
 
 extern uint64_t swapper_pg_dir[];
 extern uint8_t _suapp[], _euapp[];
@@ -27,9 +13,11 @@ extern uint8_t _suapp[], _euapp[];
 static struct task_struct *task[NR_TASKS]; // 线程数组，所有的线程都保存在此
 static struct task_struct *idle;           // idle 线程
 struct task_struct *current;               // 当前运行线程
+long task_num;
 
 void __dummy(void);
 void __switch_to(struct task_struct *prev, struct task_struct *next);
+void ret_from_fork(void);
 
 // 在这里添加或实现这些函数：
 void dummy_task(void) {
@@ -47,39 +35,6 @@ void dummy_task(void) {
       // printk("[P=%u] %u\n", current->pid, ++local);
     }
   }
-}
-
-void task_init_create_mapping(uint64_t pgtbl[static PGSIZE / 8], void *va, void *pa, uint64_t sz, uint64_t perm) {
-
-  uint64_t VA = (uint64_t)va, PA = (uint64_t)pa;
-  while (VA < (uint64_t)va + sz)
-  {
-    uint64_t vpn0 = VPN0(VA);
-    uint64_t vpn1 = VPN1(VA);
-    uint64_t vpn2 = VPN2(VA);
-
-    if (!(pgtbl[vpn2] & PTE_V)) {
-      uint64_t newpage = VA2PA(alloc_page());
-      pgtbl[vpn2] = (newpage >> 12 << 10) | PTE_V;
-    }
-
-    uint64_t *pgtbl1 = (uint64_t *)PA2VA((pgtbl[vpn2] >> 10 << 12));
-
-    if (!(pgtbl1[vpn1] & PTE_V)) {
-      uint64_t newpage = VA2PA(alloc_page());
-      pgtbl1[vpn1] = (newpage >> 12 << 10) | PTE_V;
-    }
-
-    uint64_t *pgtbl0 = (uint64_t *)PA2VA((pgtbl1[vpn1] >> 10 << 12));
-    pgtbl0[vpn0] = (PA >> 12 << 10) | perm | PTE_V | PTE_A | PTE_D;
-
-    VA += PGSIZE;
-    PA += PGSIZE;
-  }
-  
-  printk("pgtbl = %p: map [%p, %p) -> [%p, %p), perm = 0x%lx, size = %lu\n", 
-         (void *)VA2PA(pgtbl), va, (void *)((uint64_t)va + sz), pa, (void *)((uint64_t)pa + sz), perm, sz);
-  return;
 }
 
 void task_init(void){
@@ -111,7 +66,8 @@ void task_init(void){
   //    - 设置 thread_struct 中的 ra 和 sp：
   //      - ra 设置为 __dummy 的地址（见 4.3.2 节）
   //      - sp 设置为该线程申请的物理页的高地址
-  for (int i = 1; i < NR_TASKS; i++)
+  task_num = 1;
+  for (int i = 1; i <= task_num; i++)
   {
     task[i] = (struct task_struct *)alloc_page();
     task[i]->state = TASK_RUNNING;
@@ -119,7 +75,7 @@ void task_init(void){
     task[i]->priority = PRIORITY_MIN + rand() % (PRIORITY_MAX - PRIORITY_MIN + 1);
     task[i]->counter = 0;
     task[i]->thread.ra = (uint64_t)__dummy;
-    task[i]->thread.sp = (uint64_t)task[i] + 0x1000;
+    task[i]->thread.sp = (uint64_t)task[i] + PGSIZE;
     task[i]->thread.sepc = USER_START;
     uint64_t sstatus = csr_read(sstatus);
     sstatus &= ~(1 << 8);
@@ -132,14 +88,18 @@ void task_init(void){
 
     task[i]->pgd = (pagetable_t)alloc_page();
     memcpy(task[i]->pgd, swapper_pg_dir, PGSIZE);
-    uint64_t umode_stack_pa = VA2PA(alloc_page()), umode_stack_va = USER_END - PGSIZE;
-    task_init_create_mapping(task[i]->pgd, (void *)umode_stack_va, (void *)umode_stack_pa, PGSIZE, PTE_R | PTE_W | PTE_U);
+    // uint64_t umode_stack_pa = VA2PA(alloc_page()), umode_stack_va = USER_END - PGSIZE;
+    // vm_create_mapping(task[i]->pgd, (void *)umode_stack_va, (void *)umode_stack_pa, PGSIZE, PTE_R | PTE_W | PTE_U);
 
     uint64_t uapp_size = _euapp - _suapp;
-    void *uapp_copy = alloc_pages((uapp_size - 1) / PGSIZE + 1);
-    memcpy(uapp_copy, _suapp, uapp_size);
-    task_init_create_mapping(task[i]->pgd, (void *)USER_START, (void *)VA2PA(uapp_copy), uapp_size, PTE_R | PTE_W | PTE_X | PTE_U);
+    // void *uapp_copy = alloc_pages((uapp_size - 1) / PGSIZE + 1);
+    // memcpy(uapp_copy, _suapp, uapp_size);
+    // vm_create_mapping(task[i]->pgd, (void *)USER_START, (void *)VA2PA(uapp_copy), uapp_size, PTE_R | PTE_W | PTE_X | PTE_U);
     task[i]->pgd = (pagetable_t)((VA2PA(task[i]->pgd) >> 12) | (8ull << 60));
+    
+    task[i]->mm = (struct mm_struct *)alloc_page();
+    do_mmap(task[i]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
+    do_mmap(task[i]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
   }
 
   printk("...task_init done!\n");
@@ -159,7 +119,7 @@ void schedule(void) {
   struct task_struct *next;
   while (1)
   {
-    for (int i = 1; i < NR_TASKS; i++)
+    for (int i = 1; i <= task_num; i++)
       if (task[i]->state == TASK_RUNNING && task[i]->counter > c)
       {
         c = task[i]->counter;
@@ -167,7 +127,7 @@ void schedule(void) {
       }
     if (c)
       break;
-    for (int i = 1; i < NR_TASKS; i++)
+    for (int i = 1; i <= task_num; i++)
     {
       task[i]->counter = (task[i]->counter >> 1) + task[i]->priority;
       printk("SET [PID = %" PRIu64 ", PRIORITY = %" PRIu64 ", COUNTER = %" PRIu64 "]\n", task[i]->pid, task[i]->priority, task[i]->counter);
@@ -184,4 +144,118 @@ void switch_to(struct task_struct *next) {
     current = next;
     __switch_to(prev, next);
   }
+}
+
+struct vm_area_struct *find_vma(struct mm_struct *mm, void *va) {
+  struct vm_area_struct *vma = mm->mmap;
+  while (vma && (vma->vm_start > va || vma->vm_end <= va))
+    vma = vma->vm_next;
+  return vma;
+}
+
+void *do_mmap(struct mm_struct *mm, void *va, size_t len, unsigned flags) {
+  struct vm_area_struct *new_vma = (struct vm_area_struct *)alloc_page();
+  new_vma->vm_mm = mm;
+  new_vma->vm_start = va;
+  new_vma->vm_end = (void *)((size_t)va + len);
+  new_vma->vm_flags = flags;
+  new_vma->vm_prev = NULL;
+  new_vma->vm_next = mm->mmap;
+  if (mm->mmap) {
+    mm->mmap->vm_prev = new_vma;
+  }
+  mm->mmap = new_vma;
+  return va;
+}
+
+uint64_t walk_page_table(uint64_t *pgd, uint64_t va) {
+  uint64_t vpn0 = VPN0(va), vpn1 = VPN1(va), vpn2 = VPN2(va);
+  if (!(pgd[vpn2] & PTE_V)) {
+    return 0;
+  }
+  uint64_t *pgtbl1 = (uint64_t *)PA2VA((pgd[vpn2] >> 10 << 12));
+  if (!(pgtbl1[vpn1] & PTE_V)) {
+    return 0;
+  }
+  uint64_t *pgtbl0 = (uint64_t *)PA2VA((pgtbl1[vpn1] >> 10 << 12));
+  if (!(pgtbl0[vpn0] & PTE_V)) {
+    return 0;
+  }
+  return pgtbl0[vpn0];
+}
+
+long do_fork(struct pt_regs *regs) {
+  long pid = ++task_num;
+  printk("do_fork: %ld -> %ld\n", current->pid, pid);
+  task[pid] = (struct task_struct *)alloc_page();
+  task[pid]->state = TASK_RUNNING;
+  task[pid]->pid = pid;
+  task[pid]->priority = PRIORITY_MIN + rand() % (PRIORITY_MAX - PRIORITY_MIN + 1);
+  task[pid]->counter = 0;
+  task[pid]->thread.ra = (unsigned long)ret_from_fork;
+  task[pid]->thread.sp = regs->x[2] + ((uint64_t)task[pid] - (uint64_t)current);
+  task[pid]->thread.sstatus = current->thread.sstatus;
+  task[pid]->thread.sscratch = csr_read(sscratch);
+
+  for (int i = 0; i < 12; i++) {
+      task[pid]->thread.s[i] = current->thread.s[i];
+  }
+  memcpy((void *)task[pid]->thread.sp, (void *)regs->x[2], (uint64_t)current + PGSIZE - regs->x[2]);
+  struct pt_regs *pt_regs_child = (struct pt_regs *)task[pid]->thread.sp;
+  // for (int i = 0; i < 32; i++) {
+  //     pt_regs_child->x[i] = regs->x[i];
+  // }
+  pt_regs_child->x[2] = task[pid]->thread.sp;
+  pt_regs_child->x[10] = 0;
+  pt_regs_child->sepc = regs->sepc + 4;
+  
+  task[pid]->mm = (struct mm_struct *)alloc_page();
+  struct vm_area_struct *mmap_parent = current->mm->mmap, *mmap_child = NULL;
+  while (mmap_parent) {
+    mmap_child = (struct vm_area_struct *)alloc_page();
+    mmap_child->vm_mm = task[pid]->mm;
+    mmap_child->vm_start = mmap_parent->vm_start;
+    mmap_child->vm_end = mmap_parent->vm_end;
+    mmap_child->vm_flags = mmap_parent->vm_flags;
+    mmap_child->vm_prev = NULL;
+    mmap_child->vm_next = task[pid]->mm->mmap;
+    if (mmap_child->vm_next) {
+      mmap_child->vm_next->vm_prev = mmap_child;
+    }
+    task[pid]->mm->mmap = mmap_child;
+    mmap_parent = mmap_parent->vm_next;
+  }
+  
+  // uint64_t uapp_size = _euapp - _suapp;
+  // do_mmap(task[pid]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
+  // do_mmap(task[pid]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
+  
+  pagetable_t pgtbl_parent = (pagetable_t)((((uint64_t)current->pgd & 0xfffffffffff) << 12) + PA2VA_OFFSET);
+  mmap_parent = current->mm->mmap;
+  task[pid]->pgd = (pagetable_t)alloc_page();
+  // memcpy((void *)task[pid]->pgd, (void *)pgtbl_parent, PGSIZE);
+  memcpy((void *)task[pid]->pgd, (void *)swapper_pg_dir, PGSIZE);
+
+  while (mmap_parent) {
+    for (uint64_t va = (uint64_t)mmap_parent->vm_start; va < (uint64_t)mmap_parent->vm_end; va += PGSIZE) {
+      uint64_t pte = walk_page_table(pgtbl_parent, va), perm;
+      if (pte) {
+        void *ppn_pa = (void *)(pte >> 10 << 12), *ppn_va = (void *)PA2VA(ppn_pa);
+        ref_page(ppn_va);
+        if (pte & PTE_W) {
+          perm = (pte & 0x3ff & ~PTE_W) | PTE_S;
+          vm_create_mapping(pgtbl_parent, (void *)va, ppn_pa, PGSIZE, perm);
+        } else {
+          perm = pte & 0x3ff;
+        }
+        vm_create_mapping(task[pid]->pgd, (void *)va, ppn_pa, PGSIZE, perm);
+      }
+    }
+    mmap_parent = mmap_parent->vm_next;
+  }
+  
+  task[pid]->pgd = (pagetable_t)((VA2PA(task[pid]->pgd) >> 12) | (8ull << 60));
+  asm volatile("sfence.vma" ::: "memory");
+  
+  return pid;
 }
