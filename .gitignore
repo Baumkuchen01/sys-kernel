@@ -1,6 +1,9 @@
 *.o
 *.d
 *.asm
+*.bin
+*.elf
+*.map
 vmlinux
 System.map
 arch/riscv/boot/Image

@@ -15,17 +15,17 @@ void clock_set_next_event(void);
 static void do_page_fault(uint64_t scause, uint64_t stval) {
   struct vm_area_struct *vma = find_vma(current->mm, (void *)stval);
   if (vma == NULL) {
-    printk("Page fault: no vma found for address 0x%lx\n", stval);
+    printk("Page fault: no vma found for address %p\n", (void *)stval);
     return;
   }
   if (scause == 12 && !(vma->vm_flags & VM_EXEC)) {
-    printk("Page fault: execute access to non-executable page at address 0x%lx\n", stval);
+    printk("Page fault: execute access to non-executable page at address %p\n", (void *)stval);
     return;
   } else if (scause == 13 && !(vma->vm_flags & VM_READ)) {
-    printk("Page fault: read access to non-readable page at address 0x%lx\n", stval);
+    printk("Page fault: read access to non-readable page at address %p\n", (void *)stval);
     return;
   } else if (scause == 15 && !(vma->vm_flags & VM_WRITE)) {
-    printk("Page fault: write access to non-writable page at address 0x%lx\n", stval);
+    printk("Page fault: write access to non-writable page at address %p\n", (void *)stval);
     return;
   }
   pagetable_t pgtbl = (pagetable_t)((((uint64_t)current->pgd & 0xfffffffffff) << 12) + PA2VA_OFFSET);
@@ -72,10 +72,10 @@ void trap_handler(struct pt_regs *regs, uint64_t scause, uint64_t stval) {
   }
   else if (scause == 12 || scause == 13 || scause == 15) {
     char *type = (scause == 12) ? "Instruction" : (scause == 13) ? "Load" : "Store/AMO";
-    printk("[S] %s Page Fault: sepc = 0x%lx, stval = 0x%lx\n", type, regs->sepc, stval);
+    printk("[S] %s Page Fault: sepc = %p, stval = %p\n", type, (void *)regs->sepc, (void *)stval);
     do_page_fault(scause, stval);
   }
   else {
-    printk("[S] Unknown trap: scause = 0x%lx, sepc = 0x%lx\n, stval = 0x%lx\n", scause, regs->sepc, stval);
+    printk("[S] Unknown trap: scause = %p, sepc = %p\n, stval = %p\n", (void *)scause, (void *)regs->sepc, (void *)stval);
   }
 }

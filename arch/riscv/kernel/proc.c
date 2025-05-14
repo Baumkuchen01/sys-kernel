@@ -187,54 +187,54 @@ uint64_t walk_page_table(uint64_t *pgd, uint64_t va) {
 long do_fork(struct pt_regs *regs) {
   long pid = ++task_num;
   printk("do_fork: %ld -> %ld\n", current->pid, pid);
-  task[pid] = (struct task_struct *)alloc_page();
-  task[pid]->state = TASK_RUNNING;
-  task[pid]->pid = pid;
-  task[pid]->priority = PRIORITY_MIN + rand() % (PRIORITY_MAX - PRIORITY_MIN + 1);
-  task[pid]->counter = 0;
-  task[pid]->thread.ra = (unsigned long)ret_from_fork;
-  task[pid]->thread.sp = regs->x[2] + ((uint64_t)task[pid] - (uint64_t)current);
-  task[pid]->thread.sstatus = current->thread.sstatus;
-  task[pid]->thread.sscratch = csr_read(sscratch);
+  struct task_struct *child = (struct task_struct *)alloc_page();
+  child->state = TASK_RUNNING;
+  child->pid = pid;
+  child->priority = PRIORITY_MIN + rand() % (PRIORITY_MAX - PRIORITY_MIN + 1);
+  child->counter = 0;
+  child->thread.ra = (unsigned long)ret_from_fork;
+  child->thread.sp = regs->x[2] + ((uint64_t)child - (uint64_t)current);
+  child->thread.sstatus = current->thread.sstatus;
+  child->thread.sscratch = csr_read(sscratch);
 
   for (int i = 0; i < 12; i++) {
-      task[pid]->thread.s[i] = current->thread.s[i];
+      child->thread.s[i] = current->thread.s[i];
   }
-  memcpy((void *)task[pid]->thread.sp, (void *)regs->x[2], (uint64_t)current + PGSIZE - regs->x[2]);
-  struct pt_regs *pt_regs_child = (struct pt_regs *)task[pid]->thread.sp;
+  memcpy((void *)child->thread.sp, (void *)regs->x[2], (uint64_t)current + PGSIZE - regs->x[2]);
+  struct pt_regs *pt_regs_child = (struct pt_regs *)child->thread.sp;
   // for (int i = 0; i < 32; i++) {
   //     pt_regs_child->x[i] = regs->x[i];
   // }
-  pt_regs_child->x[2] = task[pid]->thread.sp;
+  pt_regs_child->x[2] = child->thread.sp;
   pt_regs_child->x[10] = 0;
   pt_regs_child->sepc = regs->sepc + 4;
   
-  task[pid]->mm = (struct mm_struct *)alloc_page();
+  child->mm = (struct mm_struct *)alloc_page();
   struct vm_area_struct *mmap_parent = current->mm->mmap, *mmap_child = NULL;
   while (mmap_parent) {
     mmap_child = (struct vm_area_struct *)alloc_page();
-    mmap_child->vm_mm = task[pid]->mm;
+    mmap_child->vm_mm = child->mm;
     mmap_child->vm_start = mmap_parent->vm_start;
     mmap_child->vm_end = mmap_parent->vm_end;
     mmap_child->vm_flags = mmap_parent->vm_flags;
     mmap_child->vm_prev = NULL;
-    mmap_child->vm_next = task[pid]->mm->mmap;
+    mmap_child->vm_next = child->mm->mmap;
     if (mmap_child->vm_next) {
       mmap_child->vm_next->vm_prev = mmap_child;
     }
-    task[pid]->mm->mmap = mmap_child;
+    child->mm->mmap = mmap_child;
     mmap_parent = mmap_parent->vm_next;
   }
   
   // uint64_t uapp_size = _euapp - _suapp;
-  // do_mmap(task[pid]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
-  // do_mmap(task[pid]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
+  // do_mmap(child->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
+  // do_mmap(child->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
   
   pagetable_t pgtbl_parent = (pagetable_t)((((uint64_t)current->pgd & 0xfffffffffff) << 12) + PA2VA_OFFSET);
   mmap_parent = current->mm->mmap;
-  task[pid]->pgd = (pagetable_t)alloc_page();
-  // memcpy((void *)task[pid]->pgd, (void *)pgtbl_parent, PGSIZE);
-  memcpy((void *)task[pid]->pgd, (void *)swapper_pg_dir, PGSIZE);
+  child->pgd = (pagetable_t)alloc_page();
+  // memcpy((void *)child->pgd, (void *)pgtbl_parent, PGSIZE);
+  memcpy((void *)child->pgd, (void *)swapper_pg_dir, PGSIZE);
 
   while (mmap_parent) {
     for (uint64_t va = (uint64_t)mmap_parent->vm_start; va < (uint64_t)mmap_parent->vm_end; va += PGSIZE) {
@@ -248,14 +248,15 @@ long do_fork(struct pt_regs *regs) {
         } else {
           perm = pte & 0x3ff;
         }
-        vm_create_mapping(task[pid]->pgd, (void *)va, ppn_pa, PGSIZE, perm);
+        vm_create_mapping(child->pgd, (void *)va, ppn_pa, PGSIZE, perm);
       }
     }
     mmap_parent = mmap_parent->vm_next;
   }
-  
-  task[pid]->pgd = (pagetable_t)((VA2PA(task[pid]->pgd) >> 12) | (8ull << 60));
+
   asm volatile("sfence.vma" ::: "memory");
-  
+  child->pgd = (pagetable_t)((VA2PA(child->pgd) >> 12) | (8ull << 60));
+  task[pid] = child;
+
   return pid;
 }
