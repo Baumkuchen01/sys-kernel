@@ -98,6 +98,7 @@ void task_init(void){
     task[i]->pgd = (pagetable_t)((VA2PA(task[i]->pgd) >> 12) | (8ull << 60));
     
     task[i]->mm = (struct mm_struct *)alloc_page();
+    task[i]->mm->mmap = NULL;
     do_mmap(task[i]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
     do_mmap(task[i]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
   }

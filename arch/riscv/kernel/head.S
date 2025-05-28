@@ -29,8 +29,8 @@ _start:
     call clock_set_next_event
 
     # 4. 设置 sstatus[SIE]
-    li t0, 1 << 1
-    csrs sstatus, t0
+    # li t0, 1 << 1
+    # csrs sstatus, t0
 
     # 5. 跳转到 start_kernel
     j start_kernel
