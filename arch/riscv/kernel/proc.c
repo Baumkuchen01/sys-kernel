@@ -98,6 +98,7 @@ void task_init(void){
     task[i]->pgd = (pagetable_t)((VA2PA(task[i]->pgd) >> 12) | (8ull << 60));
     
     task[i]->mm = (struct mm_struct *)alloc_page();
+    task[i]->mm->mmap = NULL;
     do_mmap(task[i]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
     do_mmap(task[i]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
   }
@@ -241,7 +242,7 @@ long do_fork(struct pt_regs *regs) {
       uint64_t pte = walk_page_table(pgtbl_parent, va), perm;
       if (pte) {
         void *ppn_pa = (void *)(pte >> 10 << 12), *ppn_va = (void *)PA2VA(ppn_pa);
-        ref_page(ppn_va);
+        // ref_page(ppn_va);
         if (pte & PTE_W) {
           perm = (pte & 0x3ff & ~PTE_W) | PTE_S;
           vm_create_mapping(pgtbl_parent, (void *)va, ppn_pa, PGSIZE, perm);

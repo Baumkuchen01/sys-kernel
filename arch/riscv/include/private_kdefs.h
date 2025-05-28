@@ -2,12 +2,12 @@
 #define __PRIVATE_KDEFS_H__
 
 // QEMU virt 机器的时钟频率为 10 MHz
-#define TIMECLOCK 10000000
-// #define TIMECLOCK 200000
+// #define TIMECLOCK 10000000
+#define TIMECLOCK 200000
 
 #define PHY_START 0x80000000
-// #define PHY_SIZE 0x400000 // 4 MiB
-#define PHY_SIZE 0x8000000 // 128 MiB
+#define PHY_SIZE 0x400000 // 4 MiB
+// #define PHY_SIZE 0x8000000 // 128 MiB
 
 #define OPENSBI_SIZE 0x200000
 

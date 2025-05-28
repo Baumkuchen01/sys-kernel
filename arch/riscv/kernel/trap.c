@@ -34,16 +34,16 @@ static void do_page_fault(uint64_t scause, uint64_t stval) {
   if (pte) {
     void *ppn_pa = (void *)(pte >> 10 << 12), *ppn_va = (void *)PA2VA(ppn_pa);
     if (pte & PTE_S) {
-      if (deref_page(ppn_va) == -1) {
-        void *aligned_addr = (void *)PGROUNDDOWN(stval);
-        vm_create_mapping(pgtbl, aligned_addr, ppn_pa, PGSIZE, (pte & 0x3ff & ~PTE_S) | PTE_W);
-      } else {
+      // if (deref_page(ppn_va) == -1) {
+        // void *aligned_addr = (void *)PGROUNDDOWN(stval);
+        // vm_create_mapping(pgtbl, aligned_addr, ppn_pa, PGSIZE, (pte & 0x3ff & ~PTE_S) | PTE_W);
+      // } else {
         void *new_page = alloc_page(), *aligned_addr = (void *)PGROUNDDOWN(stval);
         printk("SHARED PAGE [PID = %ld], copy %p to %p\n", current->pid, (void *)VA2PA(ppn_va), (void *)VA2PA(new_page));
         memcpy(new_page, ppn_va, PGSIZE);
         vm_create_mapping(pgtbl, aligned_addr, (void *)VA2PA(new_page), PGSIZE, (vma->vm_flags << 1) | PTE_U);
-        ref_page(new_page);
-      }
+        // ref_page(new_page);
+      // }
     }
   } else {
     void *new_page = alloc_page(), *aligned_addr = (void *)PGROUNDDOWN(stval);
@@ -51,7 +51,7 @@ static void do_page_fault(uint64_t scause, uint64_t stval) {
     if (!(vma->vm_flags & VM_ANON)) {
       memcpy(aligned_addr, (void *)((uint64_t)_suapp + aligned_addr), PGSIZE);
     }
-    ref_page(new_page);
+    // ref_page(new_page);
   }
 }
 
