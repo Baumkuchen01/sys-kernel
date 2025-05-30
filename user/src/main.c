@@ -13,6 +13,7 @@
 #define FORK3 1103
 #define FORK4 1104
 #define MALLOC 1145
+#define READ 1146
 
 #if defined(USER_MAIN) && !(USER_MAIN > 1000 && USER_MAIN < 1200)
 #warning "Invalid definition of USER_MAIN"
@@ -21,7 +22,7 @@
 
 #ifndef USER_MAIN
 // 你可以修改这一行来提供代码高亮
-#define USER_MAIN MALLOC
+#define USER_MAIN READ
 #endif
 
 #define DELAY_TIME 1247
@@ -223,6 +224,65 @@ int main(void) {
   while (1) {
     printf("\x1b[44m[U]\x1b[0m [PID = %d] var = %d\n", getpid(), var++);
     delay(DELAY_TIME / 2 + rand() % DELAY_TIME);
+  }
+}
+
+#elif USER_MAIN == READ
+
+int var = 0;
+char buffer[9];
+int fd;
+
+int main(void) {
+  printf("\x1b[44m[U]\x1b[0m [PID = %d] Testing read() system call\n", getpid());
+  
+  // Test 1: Read from stdin (file descriptor 0)
+  printf("Test 1: Reading from stdin (enter some text): ");
+  
+  ssize_t bytes_read = read(0, buffer, sizeof(buffer) - 1);
+  if (bytes_read > 0) {
+    buffer[bytes_read] = '\0';  // Null terminate
+    printf("Read %zd bytes: %s", bytes_read, buffer);
+  } else if (bytes_read == 0) {
+    printf("EOF reached\n");
+  } else {
+    printf("Read error\n");
+  }
+  
+  // Test 2: Try to read from an invalid file descriptor
+  printf("Test 2: Reading from invalid fd...\n");
+  bytes_read = read(999, buffer, sizeof(buffer));
+  if (bytes_read < 0) {
+    printf("Expected error: read from invalid fd failed\n");
+  } else {
+    printf("Unexpected: read from invalid fd succeeded\n");
+  }
+  
+  printf("Read tests completed\n");
+  // Test 3: Testing scanf functionality
+  printf("Test 3: Testing scanf - enter an integer: ");
+  int input_num;
+  int scanf_result = scanf("%d", &input_num);
+  if (scanf_result == 1) {
+    printf("Successfully read integer: %d\n", input_num);
+  } else {
+    printf("Failed to read integer\n");
+  }
+
+  printf("Test 4: Testing scanf - enter a string: ");
+  char input_str[50];
+  scanf_result = scanf("%s", input_str);
+  if (scanf_result == 1) {
+    printf("Successfully read string: %s\n", input_str);
+  } else {
+    printf("Failed to read string\n");
+  }
+
+  printf("Scanf tests completed\n");
+
+  while (1) {
+    printf("\x1b[44m[U]\x1b[0m [PID = %d] var = %d\n", getpid(), var++);
+    delay(DELAY_TIME);
   }
 }
 

@@ -27,7 +27,6 @@ void do_vma_munmap(pagetable_t pgtbl, struct vm_area_struct *vma, unsigned long 
     unmap_page(pgtbl, start, end);
 }
 
-void do_vma_mmap(struct vm_area_struct *vma, unsigned long start, unsigned long end) {
+void do_vma_mmap(struct vm_area_struct *vma, unsigned long end) {
     vma->vm_end = (void *)end;
-    // do_mmap(vma->vm_mm, (void *)start, end - start, vma->vm_flags);
 }

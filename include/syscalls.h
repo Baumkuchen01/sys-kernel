@@ -7,5 +7,6 @@
 #define __NR_getpid 172
 #define __NR_clone 220
 #define __NR_brk 214
+#define __NR_read 63
 
 #endif

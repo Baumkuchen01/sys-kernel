@@ -69,3 +69,17 @@ void *sbrk(long long increment) {
 
   return ret;
 }
+
+ssize_t read(int fd, void *buf, size_t count) {
+  ssize_t ret;
+  asm volatile("li a7, %1\n\t"
+               "mv a0, %2\n\t"
+               "mv a1, %3\n\t"
+               "mv a2, %4\n\t"
+               "ecall\n\t"
+               "mv %0, a0\n\t"
+               : "=r"(ret)
+               : "i"(__NR_read), "r"(fd), "r"(buf), "r"(count)
+               : "a0", "a1", "a2", "a7", "memory");
+  return ret;
+}

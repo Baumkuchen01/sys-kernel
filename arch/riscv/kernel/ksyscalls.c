@@ -4,6 +4,10 @@
 #include <printk.h>
 #include <private_kdefs.h>
 #include <vma.h>
+#include <sbi.h>
+#include <string.h>
+
+#define MAX_READ_SIZE 256
 
 extern struct task_struct *current;
 
@@ -21,6 +25,9 @@ void syscall_handler(struct pt_regs *regs) {
             break;
         case __NR_brk:
             regs->x[10] = sys_brk((unsigned long)regs->x[10]);
+            break;
+        case __NR_read:
+            regs->x[10] = sys_read((unsigned)regs->x[10], (char *)regs->x[11], regs->x[12]);
             break;
         default:
             printk("Unknown syscall: %lu\n", syscall_num);
@@ -74,8 +81,36 @@ long sys_brk(unsigned long brk) {
         return brk;
     } else {
         struct vm_area_struct* brkvma = find_vma(mm, (void *)oldbrk);
-        do_vma_mmap(brkvma, oldbrk, newbrk);
+        do_vma_mmap(brkvma, newbrk);
         mm->brk = brk;
         return brk;
     }
+}
+
+static int sbi_read(const void *restrict buf, size_t len) {
+    uint64_t base_addr_lo = VA2PA(buf);
+    uint64_t base_addr_hi = 0;
+    struct sbiret result = sbi_ecall(0x4442434e, 1, len, base_addr_lo, base_addr_hi, 0, 0, 0);
+    return result.value;
+}
+
+
+long sys_read(unsigned fd, char *buf, size_t count) {
+    if (fd != 0) return -1;
+    if (count == 0) return 0;
+
+    char kbuf[MAX_READ_SIZE];
+    size_t bytes_read = 0;
+
+    while (bytes_read < count) {
+        size_t chunk = (count - bytes_read > MAX_READ_SIZE) 
+                     ? MAX_READ_SIZE : count - bytes_read;
+        if (chunk == 0) 
+            break;
+        long ret = sbi_read((void *)kbuf + bytes_read, chunk);
+        bytes_read += ret;
+    }
+
+    memcpy(buf, kbuf, bytes_read);
+    return bytes_read;
 }
