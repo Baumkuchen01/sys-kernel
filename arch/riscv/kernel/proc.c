@@ -66,7 +66,7 @@ void task_init(void){
   //    - 设置 thread_struct 中的 ra 和 sp：
   //      - ra 设置为 __dummy 的地址（见 4.3.2 节）
   //      - sp 设置为该线程申请的物理页的高地址
-  task_num = 1;
+  task_num = 4;
   for (int i = 1; i <= task_num; i++)
   {
     task[i] = (struct task_struct *)alloc_page();
@@ -99,8 +99,10 @@ void task_init(void){
     
     task[i]->mm = (struct mm_struct *)alloc_page();
     task[i]->mm->mmap = NULL;
+    task[i]->mm->start_brk = task[i]->mm->brk = (unsigned long)PGROUNDUP(USER_START + uapp_size);
     do_mmap(task[i]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
     do_mmap(task[i]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
+    do_mmap(task[i]->mm, (void *)task[i]->mm->start_brk, 0, VM_READ | VM_WRITE | VM_ANON);
   }
 
   printk("...task_init done!\n");
@@ -149,7 +151,7 @@ void switch_to(struct task_struct *next) {
 
 struct vm_area_struct *find_vma(struct mm_struct *mm, void *va) {
   struct vm_area_struct *vma = mm->mmap;
-  while (vma && (vma->vm_start > va || vma->vm_end <= va))
+  while (vma && (vma->vm_start > va || vma->vm_end < va))
     vma = vma->vm_next;
   return vma;
 }
@@ -169,20 +171,20 @@ void *do_mmap(struct mm_struct *mm, void *va, size_t len, unsigned flags) {
   return va;
 }
 
-uint64_t walk_page_table(uint64_t *pgd, uint64_t va) {
+uint64_t *walk_page_table(uint64_t *pgd, uint64_t va) {
   uint64_t vpn0 = VPN0(va), vpn1 = VPN1(va), vpn2 = VPN2(va);
   if (!(pgd[vpn2] & PTE_V)) {
-    return 0;
+    return NULL;
   }
   uint64_t *pgtbl1 = (uint64_t *)PA2VA((pgd[vpn2] >> 10 << 12));
   if (!(pgtbl1[vpn1] & PTE_V)) {
-    return 0;
+    return NULL;
   }
   uint64_t *pgtbl0 = (uint64_t *)PA2VA((pgtbl1[vpn1] >> 10 << 12));
   if (!(pgtbl0[vpn0] & PTE_V)) {
-    return 0;
+    return NULL;
   }
-  return pgtbl0[vpn0];
+  return &pgtbl0[vpn0];
 }
 
 long do_fork(struct pt_regs *regs) {
@@ -239,8 +241,9 @@ long do_fork(struct pt_regs *regs) {
 
   while (mmap_parent) {
     for (uint64_t va = (uint64_t)mmap_parent->vm_start; va < (uint64_t)mmap_parent->vm_end; va += PGSIZE) {
-      uint64_t pte = walk_page_table(pgtbl_parent, va), perm;
-      if (pte) {
+      uint64_t* pte_addr = walk_page_table(pgtbl_parent, va);
+      if (pte_addr) {
+        uint64_t pte = *pte_addr, perm;
         void *ppn_pa = (void *)(pte >> 10 << 12), *ppn_va = (void *)PA2VA(ppn_pa);
         ref_page(ppn_va);
         if (pte & PTE_W) {

@@ -65,6 +65,8 @@ struct mm_struct {
    * @brief list of VMAs.
    */
   struct vm_area_struct *mmap;
+  unsigned long start_brk;
+  unsigned long brk;
 };
 
 // 进程数据结构
@@ -130,6 +132,6 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, void *va);
  */
 void *do_mmap(struct mm_struct *mm, void *va, size_t len, unsigned flags);
 long do_fork(struct pt_regs *regs);
-uint64_t walk_page_table(uint64_t *pgd, uint64_t va);
+uint64_t *walk_page_table(uint64_t *pgd, uint64_t va);
 
 #endif

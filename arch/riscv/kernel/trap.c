@@ -29,9 +29,10 @@ static void do_page_fault(uint64_t scause, uint64_t stval) {
     return;
   }
   pagetable_t pgtbl = (pagetable_t)((((uint64_t)current->pgd & 0xfffffffffff) << 12) + PA2VA_OFFSET);
-  uint64_t pte = walk_page_table(pgtbl, stval);
+  uint64_t *pte_addr = walk_page_table(pgtbl, stval);
   printk("vma = %p, ", vma);
-  if (pte) {
+  if (pte_addr) {
+    uint64_t pte = *pte_addr;
     void *ppn_pa = (void *)(pte >> 10 << 12), *ppn_va = (void *)PA2VA(ppn_pa);
     if (pte & PTE_S) {
       if (deref_page(ppn_va) == -1) {

@@ -12,6 +12,7 @@
 #define FORK2 1102
 #define FORK3 1103
 #define FORK4 1104
+#define MALLOC 1145
 
 #if defined(USER_MAIN) && !(USER_MAIN > 1000 && USER_MAIN < 1200)
 #warning "Invalid definition of USER_MAIN"
@@ -20,7 +21,7 @@
 
 #ifndef USER_MAIN
 // 你可以修改这一行来提供代码高亮
-#define USER_MAIN PFH1
+#define USER_MAIN MALLOC
 #endif
 
 #define DELAY_TIME 1247
@@ -171,6 +172,57 @@ int main(void) {
       var++;
       delay(100);
     }
+  }
+}
+
+#elif USER_MAIN == MALLOC
+
+int var = 0;
+
+int main(void) {
+  // 测试1: 基础分配与释放
+  unsigned int *ptr = (unsigned int*)malloc(sizeof(unsigned int));
+  if (ptr == NULL) {
+      printf("Test failed: malloc returned NULL\n");
+      return 1;
+  }
+  
+  *ptr = 0xDEADBEEF;  // 写入测试值
+  if (*ptr != 0xDEADBEEF) {
+      printf("Test failed: memory write/read error\n");
+      free(ptr);
+      return 1;
+  }
+  free(ptr);
+  printf("Test 1 passed: basic allocation/release successful\n");
+
+  // 测试2: 多次分配与释放
+  int *arr[10];
+  for (int i = 0; i < 10; i++) {
+      arr[i] = (int*)malloc(1024 * sizeof(int));  // 分配大内存块
+      if (arr[i] == NULL) {
+          printf("Test failed: allocation #%d failed\n", i+1);
+          // 释放已分配的内存
+          for (int j = 0; j < i; j++) free(arr[j]);
+          return 1;
+      }
+      arr[i][0] = i;  // 写入数据
+  }
+  
+  // 验证并释放
+  for (int i = 0; i < 10; i++) {
+      if (arr[i][0] != i) {
+          printf("Test failed: data validation error @ block %d\n", i);
+          for (int j = 0; j < 10; j++) free(arr[j]);
+          return 1;
+      }
+      free(arr[i]);
+  }
+  printf("Test 2 passed: multiple allocation/release successful\n");
+
+  while (1) {
+    printf("\x1b[44m[U]\x1b[0m [PID = %d] var = %d\n", getpid(), var++);
+    delay(DELAY_TIME / 2 + rand() % DELAY_TIME);
   }
 }
 

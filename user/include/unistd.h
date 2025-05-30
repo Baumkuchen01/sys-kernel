@@ -9,9 +9,11 @@
 
 typedef int pid_t;
 typedef long ssize_t;
+// typedef long long intptr_t;
 
 ssize_t write(int fd, const void *buf, size_t count);
 pid_t getpid(void);
 pid_t fork(void);
+void *sbrk(long long increment);
 
 #endif
