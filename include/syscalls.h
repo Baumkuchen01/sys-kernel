@@ -8,5 +8,7 @@
 #define __NR_clone 220
 #define __NR_brk 214
 #define __NR_read 63
+#define __NR_rt_sigaction 134
+#define __NR_kill 129
 
 #endif

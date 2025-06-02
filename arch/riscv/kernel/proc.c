@@ -100,6 +100,17 @@ void task_init(void){
     task[i]->mm = (struct mm_struct *)alloc_page();
     task[i]->mm->mmap = NULL;
     task[i]->mm->start_brk = task[i]->mm->brk = (unsigned long)PGROUNDUP(USER_START + uapp_size);
+    
+    struct sighand_struct* sighand = (struct sighand_struct *)alloc_page();
+    for (int j = 0; j < _NSIG; j++) {
+      sighand->action[j].sa_handler = SIG_DFL;
+      sighand->action[j].sa_flags = 0;
+      for (int k = 0; k < _NSIG_WORDS; k++) {
+        sighand->action[j].sa_mask.sig[k] = 0;
+      }
+    }
+    task[i]->sighand = sighand;
+
     do_mmap(task[i]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
     do_mmap(task[i]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
     do_mmap(task[i]->mm, (void *)task[i]->mm->start_brk, 0, VM_READ | VM_WRITE | VM_ANON);

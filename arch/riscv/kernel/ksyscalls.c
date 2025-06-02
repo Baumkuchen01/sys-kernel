@@ -6,6 +6,7 @@
 #include <vma.h>
 #include <sbi.h>
 #include <string.h>
+#include <signal.h>
 
 #define MAX_READ_SIZE 256
 
@@ -28,6 +29,11 @@ void syscall_handler(struct pt_regs *regs) {
             break;
         case __NR_read:
             regs->x[10] = sys_read((unsigned)regs->x[10], (char *)regs->x[11], regs->x[12]);
+            break;
+        case __NR_rt_sigaction:
+            struct sigaction *act = (struct sigaction *)regs->x[11];
+            struct sigaction *oldact = (struct sigaction *)regs->x[12];
+            regs->x[10] = sys_sigaction((int)regs->x[10], act, oldact);
             break;
         default:
             printk("Unknown syscall: %lu\n", syscall_num);
@@ -94,7 +100,6 @@ static int sbi_read(const void *restrict buf, size_t len) {
     return result.value;
 }
 
-
 long sys_read(unsigned fd, char *buf, size_t count) {
     if (fd != 0) return -1;
     if (count == 0) return 0;
@@ -113,4 +118,25 @@ long sys_read(unsigned fd, char *buf, size_t count) {
 
     memcpy(buf, kbuf, bytes_read);
     return bytes_read;
+}
+
+long sys_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
+    if (signum < 1 || signum >= _NSIG || (act && (signum == SIGKILL || signum == SIGSTOP))) {
+        return -1;
+    }
+    struct sighand_struct *sig = current->sighand;
+    struct sigaction *k = &sig->action[signum - 1];
+
+    if (oldact) {
+        *oldact = *k;
+    }
+
+    if (act) {
+        struct sigaction tmp, *newact = &tmp;
+        *newact = *act;
+        sigdelsetmask(&newact->sa_mask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+        *k = *newact;
+    }
+
+    return 0;
 }

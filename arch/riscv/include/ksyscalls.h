@@ -11,5 +11,6 @@ struct pt_regs;
 long sys_clone(struct pt_regs *regs);
 long sys_brk(unsigned long brk);
 long sys_read(unsigned fd, char *buf, size_t count);
+long sys_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
 
 #endif

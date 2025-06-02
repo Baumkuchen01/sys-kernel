@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <signal.h>
 
 #define TASK_RUNNING 0 // 为了简化实验，所有的线程都只有一种状态
 
@@ -69,6 +70,18 @@ struct mm_struct {
   unsigned long brk;
 };
 
+struct sighand_struct {
+  struct sigaction action[_NSIG];
+};
+
+struct signal_struct {
+  int flags; // 信号标志
+  sigset_t blocked; // 被阻塞的信号集
+  struct sighand_struct *sighand; // 信号处理函数
+  int sigcnt; // 信号计数
+  int sigpending; // 待处理信号数量
+};
+
 // 进程数据结构
 struct task_struct {
   uint64_t pid;      // 进程 ID
@@ -81,6 +94,8 @@ struct task_struct {
   pagetable_t pgd; // 页表
 
   struct mm_struct *mm;
+  struct sighand_struct *sighand;
+  struct signal_struct *signal;
 };
 
 /**

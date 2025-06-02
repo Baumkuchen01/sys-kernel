@@ -14,6 +14,7 @@
 #define FORK4 1104
 #define MALLOC 1145
 #define READ 1146
+#define SIGNAL 1147
 
 #if defined(USER_MAIN) && !(USER_MAIN > 1000 && USER_MAIN < 1200)
 #warning "Invalid definition of USER_MAIN"
@@ -22,7 +23,7 @@
 
 #ifndef USER_MAIN
 // 你可以修改这一行来提供代码高亮
-#define USER_MAIN READ
+#define USER_MAIN SIGNAL
 #endif
 
 #define DELAY_TIME 1247
@@ -181,14 +182,14 @@ int main(void) {
 int var = 0;
 
 int main(void) {
-  // 测试1: 基础分配与释放
+  // Test 1: Basic allocation and release
   unsigned int *ptr = (unsigned int*)malloc(sizeof(unsigned int));
   if (ptr == NULL) {
       printf("Test failed: malloc returned NULL\n");
       return 1;
   }
   
-  *ptr = 0xDEADBEEF;  // 写入测试值
+  *ptr = 0xDEADBEEF;  // Write test value
   if (*ptr != 0xDEADBEEF) {
       printf("Test failed: memory write/read error\n");
       free(ptr);
@@ -197,20 +198,20 @@ int main(void) {
   free(ptr);
   printf("Test 1 passed: basic allocation/release successful\n");
 
-  // 测试2: 多次分配与释放
+  // Test 2: Multiple allocation and release
   int *arr[10];
   for (int i = 0; i < 10; i++) {
-      arr[i] = (int*)malloc(1024 * sizeof(int));  // 分配大内存块
+      arr[i] = (int*)malloc(1024 * sizeof(int));  // Allocate large memory blocks
       if (arr[i] == NULL) {
           printf("Test failed: allocation #%d failed\n", i+1);
-          // 释放已分配的内存
+          // Free already allocated memory
           for (int j = 0; j < i; j++) free(arr[j]);
           return 1;
       }
-      arr[i][0] = i;  // 写入数据
+      arr[i][0] = i;  // Write data
   }
   
-  // 验证并释放
+  // Validate and release
   for (int i = 0; i < 10; i++) {
       if (arr[i][0] != i) {
           printf("Test failed: data validation error @ block %d\n", i);
@@ -286,4 +287,42 @@ int main(void) {
   }
 }
 
+#elif USER_MAIN == SIGNAL
+
+#include <signal.h>
+
+int var = 0;
+volatile int signal_received = 0;
+
+void signal_handler(int sig) {
+  printf("\x1b[41m[SIGNAL]\x1b[0m Received signal %d\n", sig);
+  signal_received = 1;
+}
+
+int main(void) {
+  printf("\x1b[44m[U]\x1b[0m [PID = %d] Testing signal() system call\n", getpid());
+  
+  sighandler_t old_handler = signal(SIGINT, signal_handler);
+  printf("old_handler = %p\n", old_handler);
+  // Test 1: Register signal handler for SIGINT (Ctrl+C)
+  if (old_handler == SIG_ERR) {
+    printf("Failed to register SIGINT handler\n");
+    return 1;
+  }
+  printf("Test 1: SIGINT handler registered.\n");
+  
+  printf("signal_handler = %p\n", signal(SIGINT, signal_handler));
+  // Main loop
+  while (1) {
+    printf("\x1b[44m[U]\x1b[0m [PID = %d] var = %d, signal_received = %d\n", 
+         getpid(), var++, signal_received);
+    
+    if (signal_received) {
+      printf("Signal was caught! Resetting flag.\n");
+      signal_received = 0;
+    }
+    
+    delay(DELAY_TIME);
+  }
+}
 #endif
