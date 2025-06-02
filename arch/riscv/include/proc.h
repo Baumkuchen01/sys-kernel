@@ -12,6 +12,10 @@
 #define PRIORITY_MIN 1
 #define PRIORITY_MAX 10
 
+#define TIF_SIGPENDING		3
+#define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
+
+typedef uint64_t pid_t;
 typedef uint64_t *pagetable_t;
 
 // 中断处理所需寄存器堆
@@ -75,11 +79,13 @@ struct sighand_struct {
 };
 
 struct signal_struct {
-  int flags; // 信号标志
-  sigset_t blocked; // 被阻塞的信号集
-  struct sighand_struct *sighand; // 信号处理函数
-  int sigcnt; // 信号计数
-  int sigpending; // 待处理信号数量
+  sigset_t sigpending;
+  sigset_t blocked;
+};
+
+struct ksignal {
+	struct sigaction ka;
+	int sig;
 };
 
 // 进程数据结构
@@ -96,6 +102,18 @@ struct task_struct {
   struct mm_struct *mm;
   struct sighand_struct *sighand;
   struct signal_struct *signal;
+  unsigned long flags;
+};
+
+struct user_regs_struct {
+	uint64_t x[32];
+  uint64_t sepc;
+};
+
+struct rt_sigframe {
+  // struct siginfo info;
+	// struct ucontext uc;
+  struct user_regs_struct user_regs;
 };
 
 /**
@@ -148,5 +166,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, void *va);
 void *do_mmap(struct mm_struct *mm, void *va, size_t len, unsigned flags);
 long do_fork(struct pt_regs *regs);
 uint64_t *walk_page_table(uint64_t *pgd, uint64_t va);
+struct task_struct *find_task_by_pid(pid_t pid);
+struct rt_sigframe *get_sigframe(struct pt_regs *regs);
 
 #endif

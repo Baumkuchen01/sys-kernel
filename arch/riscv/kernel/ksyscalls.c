@@ -35,6 +35,12 @@ void syscall_handler(struct pt_regs *regs) {
             struct sigaction *oldact = (struct sigaction *)regs->x[12];
             regs->x[10] = sys_sigaction((int)regs->x[10], act, oldact);
             break;
+        case __NR_kill:
+            regs->x[10] = sys_kill((pid_t)regs->x[10], (int)regs->x[11]);
+            break;
+        case __NR_rt_sigreturn:
+            sys_rt_sigreturn(regs);
+            break;
         default:
             printk("Unknown syscall: %lu\n", syscall_num);
             break;
@@ -139,4 +145,38 @@ long sys_sigaction(int signum, const struct sigaction *act, struct sigaction *ol
     }
 
     return 0;
+}
+
+void send_signal(struct task_struct *task, int sig) {
+    struct signal_struct *signal = task->signal;
+
+    signal->sigpending.sig[0] |= sigmask(sig);
+    
+    if (!(signal->blocked.sig[sig / __BITS_PER_LONG] & sigmask(sig))) {
+        task->flags |= _TIF_SIGPENDING;
+    }
+}
+
+long sys_kill(pid_t pid, int sig) {
+    if (pid <= 0 || sig < 0 || sig >= _NSIG) {
+        return -1;
+    }
+
+    struct task_struct *task = find_task_by_pid(pid);
+    if (!task) {
+        return -1;
+    }
+
+    send_signal(task, sig);
+    return 0;
+}
+
+void sys_rt_sigreturn(struct pt_regs *regs) {
+    struct rt_sigframe *frame = get_sigframe(regs);
+    for (int i = 0; i < 32; i++) {
+        regs->x[i] = frame->user_regs.x[i];
+    }
+    regs->sepc = frame->user_regs.sepc;
+    regs->x[10] = 0;
+    return;
 }

@@ -111,6 +111,14 @@ void task_init(void){
     }
     task[i]->sighand = sighand;
 
+    struct signal_struct* signal = (struct signal_struct *)alloc_page();
+    for (int j = 0; j < _NSIG_WORDS; j++) {
+      signal->sigpending.sig[j] = 0;
+      signal->blocked.sig[j] = 0;
+    }
+    task[i]->signal = signal;
+    task[i]->flags = 0;
+
     do_mmap(task[i]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
     do_mmap(task[i]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
     do_mmap(task[i]->mm, (void *)task[i]->mm->start_brk, 0, VM_READ | VM_WRITE | VM_ANON);
@@ -207,19 +215,19 @@ long do_fork(struct pt_regs *regs) {
   child->priority = PRIORITY_MIN + rand() % (PRIORITY_MAX - PRIORITY_MIN + 1);
   child->counter = 0;
   child->thread.ra = (unsigned long)ret_from_fork;
-  child->thread.sp = regs->x[2] + ((uint64_t)child - (uint64_t)current);
+  child->thread.sp =  (uint64_t)regs + ((uint64_t)child - (uint64_t)current);
   child->thread.sstatus = current->thread.sstatus;
   child->thread.sscratch = csr_read(sscratch);
 
   for (int i = 0; i < 12; i++) {
       child->thread.s[i] = current->thread.s[i];
   }
-  memcpy((void *)child->thread.sp, (void *)regs->x[2], (uint64_t)current + PGSIZE - regs->x[2]);
+  memcpy((void *)child->thread.sp, (void *)regs, (uint64_t)current + PGSIZE - (uint64_t)regs);
   struct pt_regs *pt_regs_child = (struct pt_regs *)child->thread.sp;
   // for (int i = 0; i < 32; i++) {
   //     pt_regs_child->x[i] = regs->x[i];
   // }
-  pt_regs_child->x[2] = child->thread.sp;
+  pt_regs_child->x[2] = regs->x[2];
   pt_regs_child->x[10] = 0;
   pt_regs_child->sepc = regs->sepc + 4;
   
@@ -274,4 +282,20 @@ long do_fork(struct pt_regs *regs) {
   task[pid] = child;
 
   return pid;
+}
+
+struct task_struct *find_task_by_pid(pid_t pid) {
+  if (pid <= 0 || pid > task_num) {
+      return NULL;
+  }
+  return task[pid];
+}
+
+struct rt_sigframe *get_sigframe(struct pt_regs *regs) {
+  unsigned long sp = regs->x[2];
+  // sp &= ~0xfUL;
+  pagetable_t pgtbl = (pagetable_t)((((uint64_t)current->pgd & 0xfffffffffff) << 12) + PA2VA_OFFSET);
+  uint64_t *pte_addr = walk_page_table(pgtbl, sp), pte = *pte_addr;
+  void *ppn_pa = (void *)(pte >> 10 << 12), *ppn_va = (void *)PA2VA(ppn_pa);
+  return (struct rt_sigframe *)ppn_va;
 }

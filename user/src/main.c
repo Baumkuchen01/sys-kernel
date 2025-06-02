@@ -312,6 +312,14 @@ int main(void) {
   printf("Test 1: SIGINT handler registered.\n");
   
   printf("signal_handler = %p\n", signal(SIGINT, signal_handler));
+
+  kill(getpid(), SIGINT); // Trigger the signal handler immediately
+  if (signal_received) {
+    printf("Signal handler executed successfully.\n");
+  } else {
+    printf("Signal handler did not execute as expected.\n");
+  }
+
   // Main loop
   while (1) {
     printf("\x1b[44m[U]\x1b[0m [PID = %d] var = %d, signal_received = %d\n", 

@@ -9,12 +9,14 @@ _traps:
     # csrw sscratch, sp
     # mv sp, t0
 # L1:
+    mv t0, sp
     csrrw sp, sscratch, sp
     # 1. 将寄存器和 sepc 保存到栈上
     addi sp, sp, -33 * 8
     sd x0, 0 * 8(sp)
     sd x1, 1 * 8(sp)
-    sd x2, 2 * 8(sp)
+    # sd x2, 2 * 8(sp)
+    sd t0, 2 * 8(sp)
     sd x3, 3 * 8(sp)
     sd x4, 4 * 8(sp)
     sd x5, 5 * 8(sp)
@@ -58,7 +60,8 @@ restore:
     # 3. 恢复寄存器和 sepc
     #    特别注意 sp 寄存器的恢复
     ld x1, 1 * 8(sp)
-    ld x2, 2 * 8(sp)
+    # ld x2, 2 * 8(sp)
+    # ld t0, 2 * 8(sp)
     ld x3, 3 * 8(sp)
     ld x4, 4 * 8(sp)
     ld x5, 5 * 8(sp)
@@ -90,6 +93,7 @@ restore:
     ld x31, 31 * 8(sp)
     ld t0, 32 * 8(sp)
     csrw sepc, t0
+    ld t0, 2 * 8(sp)
     addi sp, sp, 33 * 8
 
     # csrr t0, sscratch
@@ -98,6 +102,7 @@ restore:
     # mv sp, t0
 # L2:
     csrrw sp, sscratch, sp
+    mv sp, t0
     # 4. 返回
     sret
 

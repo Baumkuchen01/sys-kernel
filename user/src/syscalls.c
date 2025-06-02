@@ -1,6 +1,9 @@
 #include <syscalls.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <signal.h>
+
+void __trampoline(void);
 
 pid_t getpid(void) {
   pid_t ret;
@@ -104,6 +107,10 @@ sighandler_t signal(int signum, sighandler_t handler) {
   
   act.sa_handler = handler;
   act.sa_flags = 0;
+  for (int i = 0; i < _NSIG_WORDS; i++) {
+    act.sa_mask.sig[i] = 0;
+  }
+  act.sa_restorer = __trampoline;
   
   if (sigaction(signum, &act, &oldact) < 0) {
     return SIG_ERR;

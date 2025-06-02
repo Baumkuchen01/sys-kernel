@@ -45,6 +45,7 @@
 #define	SIGUNUSED	31
 
 typedef void (*sighandler_t)(int);
+typedef void (*__sigrestore_t)(void);
 
 #define SIG_DFL	((sighandler_t)0)
 #define SIG_IGN	((sighandler_t)1)
@@ -58,6 +59,7 @@ struct sigaction {
     sighandler_t sa_handler;
     unsigned long sa_flags;
     sigset_t sa_mask;
+    __sigrestore_t sa_restorer;
 };
 
 #define sigmask(sig)	(1UL << ((sig) - 1))
