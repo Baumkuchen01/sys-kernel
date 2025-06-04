@@ -82,8 +82,8 @@ void create_mapping(uint64_t pgtbl[static PGSIZE / 8], void *va, void *pa, uint6
     PA += PGSIZE;
   }
   
-  printk("pgtbl = %p: map [%p, %p) -> [%p, %p), perm = 0x%lx, size = %lu\n", 
-         (void *)VA2PA(pgtbl), va, (void *)((uint64_t)va + sz), pa, (void *)((uint64_t)pa + sz), perm, sz);
+  // printk("pgtbl = %p: map [%p, %p) -> [%p, %p), perm = 0x%lx, size = %lu\n", 
+  //        (void *)VA2PA(pgtbl), va, (void *)((uint64_t)va + sz), pa, (void *)((uint64_t)pa + sz), perm, sz);
   return;
 }
 
@@ -115,7 +115,7 @@ void vm_create_mapping(uint64_t pgtbl[static PGSIZE / 8], void *va, void *pa, ui
     PA += PGSIZE;
   }
   
-  printk("pgtbl = %p: map [%p, %p) -> [%p, %p), perm = 0x%lx, size = %lu\n", 
-         (void *)VA2PA(pgtbl), va, (void *)((uint64_t)va + sz), pa, (void *)((uint64_t)pa + sz), perm, sz);
+  // printk("pgtbl = %p: map [%p, %p) -> [%p, %p), perm = 0x%lx, size = %lu\n", 
+  //        (void *)VA2PA(pgtbl), va, (void *)((uint64_t)va + sz), pa, (void *)((uint64_t)pa + sz), perm, sz);
   return;
 }

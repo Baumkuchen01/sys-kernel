@@ -66,7 +66,7 @@ void task_init(void){
   //    - 设置 thread_struct 中的 ra 和 sp：
   //      - ra 设置为 __dummy 的地址（见 4.3.2 节）
   //      - sp 设置为该线程申请的物理页的高地址
-  task_num = 4;
+  task_num = 1;
   for (int i = 1; i <= task_num; i++)
   {
     task[i] = (struct task_struct *)alloc_page();
@@ -230,6 +230,20 @@ long do_fork(struct pt_regs *regs) {
   pt_regs_child->x[2] = regs->x[2];
   pt_regs_child->x[10] = 0;
   pt_regs_child->sepc = regs->sepc + 4;
+
+  struct sighand_struct* sighand = (struct sighand_struct *)alloc_page();
+  for (int i = 0; i < _NSIG; i++) {
+    sighand->action[i] = current->sighand->action[i];
+  }
+  child->sighand = sighand;
+
+  struct signal_struct* signal = (struct signal_struct *)alloc_page();
+  for (int i = 0; i < _NSIG_WORDS; i++) {
+    signal->sigpending.sig[i] = current->signal->sigpending.sig[i];
+    signal->blocked.sig[i] = current->signal->blocked.sig[i];
+  }
+  child->signal = signal;
+  child->flags = current->flags;
   
   child->mm = (struct mm_struct *)alloc_page();
   struct vm_area_struct *mmap_parent = current->mm->mmap, *mmap_child = NULL;
@@ -277,6 +291,9 @@ long do_fork(struct pt_regs *regs) {
     mmap_parent = mmap_parent->vm_next;
   }
 
+  child->mm->start_brk = current->mm->start_brk;
+  child->mm->brk = current->mm->brk;
+
   asm volatile("sfence.vma" ::: "memory");
   child->pgd = (pagetable_t)((VA2PA(child->pgd) >> 12) | (8ull << 60));
   task[pid] = child;
@@ -285,7 +302,7 @@ long do_fork(struct pt_regs *regs) {
 }
 
 struct task_struct *find_task_by_pid(pid_t pid) {
-  if (pid <= 0 || pid > task_num) {
+  if (pid <= 0 || pid > (pid_t)task_num) {
       return NULL;
   }
   return task[pid];

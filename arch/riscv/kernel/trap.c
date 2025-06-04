@@ -19,18 +19,18 @@ static void do_page_fault(uint64_t scause, uint64_t stval) {
     return;
   }
   if (scause == 12 && !(vma->vm_flags & VM_EXEC)) {
-    printk("Page fault: execute access to non-executable page at address %p\n", (void *)stval);
+    // printk("Page fault: execute access to non-executable page at address %p\n", (void *)stval);
     return;
   } else if (scause == 13 && !(vma->vm_flags & VM_READ)) {
-    printk("Page fault: read access to non-readable page at address %p\n", (void *)stval);
+    // printk("Page fault: read access to non-readable page at address %p\n", (void *)stval);
     return;
   } else if (scause == 15 && !(vma->vm_flags & VM_WRITE)) {
-    printk("Page fault: write access to non-writable page at address %p\n", (void *)stval);
+    // printk("Page fault: write access to non-writable page at address %p\n", (void *)stval);
     return;
   }
   pagetable_t pgtbl = (pagetable_t)((((uint64_t)current->pgd & 0xfffffffffff) << 12) + PA2VA_OFFSET);
   uint64_t *pte_addr = walk_page_table(pgtbl, stval);
-  printk("vma = %p, ", vma);
+  // printk("vma = %p, ", vma);
   if (pte_addr) {
     uint64_t pte = *pte_addr;
     void *ppn_pa = (void *)(pte >> 10 << 12), *ppn_va = (void *)PA2VA(ppn_pa);
@@ -40,7 +40,7 @@ static void do_page_fault(uint64_t scause, uint64_t stval) {
         vm_create_mapping(pgtbl, aligned_addr, ppn_pa, PGSIZE, (pte & 0x3ff & ~PTE_S) | PTE_W);
       } else {
         void *new_page = alloc_page(), *aligned_addr = (void *)PGROUNDDOWN(stval);
-        printk("SHARED PAGE [PID = %ld], copy %p to %p\n", current->pid, (void *)VA2PA(ppn_va), (void *)VA2PA(new_page));
+        // printk("SHARED PAGE [PID = %ld], copy %p to %p\n", current->pid, (void *)VA2PA(ppn_va), (void *)VA2PA(new_page));
         memcpy(new_page, ppn_va, PGSIZE);
         vm_create_mapping(pgtbl, aligned_addr, (void *)VA2PA(new_page), PGSIZE, (vma->vm_flags << 1) | PTE_U);
         ref_page(new_page);
@@ -80,7 +80,6 @@ int get_signal(struct ksignal *ksig) {
         !(signal->blocked.sig[i / __BITS_PER_LONG] & sigmask(i))) {
       ksig->sig = i;
       ksig->ka = current->sighand->action[i - 1];
-      // 清除信号
       sigdelsetmask(&signal->sigpending, sigmask(i));
       recalc_sigpending();
       return 1;
@@ -107,6 +106,9 @@ void do_signal(struct pt_regs *regs) {
   // struct sighand_struct *sighand = current->sighand;
   if (get_signal(&ksig)) {
     // handle_signal(&ksig, regs);
+    if (ksig.ka.sa_handler == SIG_IGN || ksig.ka.sa_handler == SIG_DFL) {
+      return;
+    }
     setup_rt_frame(&ksig, regs);
   }
 }
@@ -133,10 +135,11 @@ void trap_handler(struct pt_regs *regs, uint64_t scause, uint64_t stval) {
     syscall_handler(regs);
     regs->sepc += 4;
     syscall_exit_to_user_mode(regs);
+    // printk("%ld\n", regs->x[10]);
   }
   else if (scause == 12 || scause == 13 || scause == 15) {
     char *type = (scause == 12) ? "Instruction" : (scause == 13) ? "Load" : "Store/AMO";
-    printk("[S] %s Page Fault: sepc = %p, stval = %p\n", type, (void *)regs->sepc, (void *)stval);
+    // printk("[S] %s Page Fault: sepc = %p, stval = %p\n", type, (void *)regs->sepc, (void *)stval);
     do_page_fault(scause, stval);
   }
   else {

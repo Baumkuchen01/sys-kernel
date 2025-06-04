@@ -182,45 +182,25 @@ int main(void) {
 int var = 0;
 
 int main(void) {
-  // Test 1: Basic allocation and release
   unsigned int *ptr = (unsigned int*)malloc(sizeof(unsigned int));
   if (ptr == NULL) {
-      printf("Test failed: malloc returned NULL\n");
+      printf("test failed: malloc returned NULL\n");
       return 1;
+  } else {
+      printf("malloc successful, allocated %p\n", ptr);
   }
   
-  *ptr = 0xDEADBEEF;  // Write test value
+  *ptr = 0xDEADBEEF;
+  printf("writing value 0x%X to allocated memory\n", *ptr);
   if (*ptr != 0xDEADBEEF) {
-      printf("Test failed: memory write/read error\n");
+      printf("test failed: memory write/read error\n");
       free(ptr);
       return 1;
+  } else {
+      printf("memory write/read successful, value = 0x%X\n", *ptr);
   }
   free(ptr);
-  printf("Test 1 passed: basic allocation/release successful\n");
-
-  // Test 2: Multiple allocation and release
-  int *arr[10];
-  for (int i = 0; i < 10; i++) {
-      arr[i] = (int*)malloc(1024 * sizeof(int));  // Allocate large memory blocks
-      if (arr[i] == NULL) {
-          printf("Test failed: allocation #%d failed\n", i+1);
-          // Free already allocated memory
-          for (int j = 0; j < i; j++) free(arr[j]);
-          return 1;
-      }
-      arr[i][0] = i;  // Write data
-  }
-  
-  // Validate and release
-  for (int i = 0; i < 10; i++) {
-      if (arr[i][0] != i) {
-          printf("Test failed: data validation error @ block %d\n", i);
-          for (int j = 0; j < 10; j++) free(arr[j]);
-          return 1;
-      }
-      free(arr[i]);
-  }
-  printf("Test 2 passed: multiple allocation/release successful\n");
+  printf("memory freed successfully\n");
 
   while (1) {
     printf("\x1b[44m[U]\x1b[0m [PID = %d] var = %d\n", getpid(), var++);
@@ -231,55 +211,27 @@ int main(void) {
 #elif USER_MAIN == READ
 
 int var = 0;
-char buffer[9];
-int fd;
 
 int main(void) {
-  printf("\x1b[44m[U]\x1b[0m [PID = %d] Testing read() system call\n", getpid());
-  
-  // Test 1: Read from stdin (file descriptor 0)
-  printf("Test 1: Reading from stdin (enter some text): ");
-  
-  ssize_t bytes_read = read(0, buffer, sizeof(buffer) - 1);
-  if (bytes_read > 0) {
-    buffer[bytes_read] = '\0';  // Null terminate
-    printf("Read %zd bytes: %s", bytes_read, buffer);
-  } else if (bytes_read == 0) {
-    printf("EOF reached\n");
-  } else {
-    printf("Read error\n");
-  }
-  
-  // Test 2: Try to read from an invalid file descriptor
-  printf("Test 2: Reading from invalid fd...\n");
-  bytes_read = read(999, buffer, sizeof(buffer));
-  if (bytes_read < 0) {
-    printf("Expected error: read from invalid fd failed\n");
-  } else {
-    printf("Unexpected: read from invalid fd succeeded\n");
-  }
-  
-  printf("Read tests completed\n");
-  // Test 3: Testing scanf functionality
-  printf("Test 3: Testing scanf - enter an integer: ");
+  printf("enter an integer: ");
   int input_num;
   int scanf_result = scanf("%d", &input_num);
+  printf("\n");
   if (scanf_result == 1) {
-    printf("Successfully read integer: %d\n", input_num);
+    printf("successfully read integer: %d\n", input_num);
   } else {
-    printf("Failed to read integer\n");
+    printf("failed to read integer\n");
   }
 
-  printf("Test 4: Testing scanf - enter a string: ");
+  printf("enter a string: ");
   char input_str[50];
   scanf_result = scanf("%s", input_str);
+  printf("\n");
   if (scanf_result == 1) {
-    printf("Successfully read string: %s\n", input_str);
+    printf("successfully read string: %s\n", input_str);
   } else {
-    printf("Failed to read string\n");
+    printf("failed to read string\n");
   }
-
-  printf("Scanf tests completed\n");
 
   while (1) {
     printf("\x1b[44m[U]\x1b[0m [PID = %d] var = %d\n", getpid(), var++);
@@ -292,45 +244,31 @@ int main(void) {
 #include <signal.h>
 
 int var = 0;
-volatile int signal_received = 0;
+const char *ident;
 
 void signal_handler(int sig) {
-  printf("\x1b[41m[SIGNAL]\x1b[0m Received signal %d\n", sig);
-  signal_received = 1;
+  printf("\x1b[41m[SIGNAL-%s]\x1b[0m Received signal %d\n", ident, sig);
 }
 
 int main(void) {
-  printf("\x1b[44m[U]\x1b[0m [PID = %d] Testing signal() system call\n", getpid());
-  
-  sighandler_t old_handler = signal(SIGINT, signal_handler);
-  printf("old_handler = %p\n", old_handler);
-  // Test 1: Register signal handler for SIGINT (Ctrl+C)
-  if (old_handler == SIG_ERR) {
-    printf("Failed to register SIGINT handler\n");
-    return 1;
-  }
-  printf("Test 1: SIGINT handler registered.\n");
-  
-  printf("signal_handler = %p\n", signal(SIGINT, signal_handler));
-
-  kill(getpid(), SIGINT); // Trigger the signal handler immediately
-  if (signal_received) {
-    printf("Signal handler executed successfully.\n");
-  } else {
-    printf("Signal handler did not execute as expected.\n");
-  }
-
-  // Main loop
-  while (1) {
-    printf("\x1b[44m[U]\x1b[0m [PID = %d] var = %d, signal_received = %d\n", 
-         getpid(), var++, signal_received);
-    
-    if (signal_received) {
-      printf("Signal was caught! Resetting flag.\n");
-      signal_received = 0;
+  signal(SIGINT, signal_handler);
+  printf("signal handler registered\n");
+  signal(SIGINT, signal_handler);
+  pid_t pid = fork();
+  ident = pid ? "PARN" : "CHLD";
+  printf("raise(SIGINT) in [PID = %d]\n", getpid());
+  raise(SIGINT);
+  if (pid == 0) {
+    while (1) {
+      printf("\x1b[44m[U-%s]\x1b[0m [PID = %d] var = %d\n", ident, getpid(), var++);
+      delay(DELAY_TIME);
     }
-    
-    delay(DELAY_TIME);
+  } else {
+    while (1) {
+      printf("\x1b[44m[U-%s]\x1b[0m [PID = %d] var = %d\n", ident, getpid(), var++);
+      kill(pid, SIGINT);
+      delay(DELAY_TIME);
+    }
   }
 }
 #endif

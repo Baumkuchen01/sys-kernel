@@ -132,3 +132,7 @@ int kill(pid_t pid, int sig) {
                : "a0", "a1", "a7", "memory");
   return ret;
 }
+
+int raise(int sig) {
+  return kill(getpid(), sig);
+}

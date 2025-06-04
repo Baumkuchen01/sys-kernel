@@ -17,7 +17,9 @@ pid_t getpid(void);
 pid_t fork(void);
 void *sbrk(long long increment);
 ssize_t read(int fd, void *buf, size_t count);
+int sigaction(int signum, const struct sigaction *restrict act, struct sigaction *restrict oldact);
 sighandler_t signal(int signum, sighandler_t handler);
 int kill(pid_t pid, int sig);
+int raise(int sig);
 
 #endif

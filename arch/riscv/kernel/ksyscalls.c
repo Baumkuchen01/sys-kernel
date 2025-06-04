@@ -176,7 +176,6 @@ void sys_rt_sigreturn(struct pt_regs *regs) {
     for (int i = 0; i < 32; i++) {
         regs->x[i] = frame->user_regs.x[i];
     }
-    regs->sepc = frame->user_regs.sepc;
-    regs->x[10] = 0;
+    regs->sepc = frame->user_regs.sepc - 4;
     return;
 }
