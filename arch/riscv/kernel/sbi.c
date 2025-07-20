@@ -22,3 +22,7 @@ struct sbiret sbi_ecall(uint64_t eid, uint64_t fid,
     );
     return (struct sbiret) {error, value};
 }
+
+struct sbiret sbi_debug_console_read(uint64_t num_bytes, uint64_t base_addr_lo, uint64_t base_addr_hi) {
+    return sbi_ecall(0x4442434e, 1, num_bytes, base_addr_lo, base_addr_hi, 0, 0, 0);
+}

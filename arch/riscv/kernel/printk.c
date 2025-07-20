@@ -15,7 +15,7 @@ static int printk_sbi_write(FILE *restrict fp, const void *restrict buf, size_t 
   return result.value;
 }
 
-void printk(const char *fmt, ...) {
+int printk(const char *fmt, ...) {
   FILE printk_out = {
       .write = printk_sbi_write,
   };
@@ -24,4 +24,6 @@ void printk(const char *fmt, ...) {
   va_start(ap, fmt);
   vfprintf(&printk_out, fmt, ap);
   va_end(ap);
+
+  return 0;
 }

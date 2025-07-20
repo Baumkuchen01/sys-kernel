@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <signal.h>
+#include <fs.h>
 
 #define TASK_RUNNING 0 // 为了简化实验，所有的线程都只有一种状态
 
@@ -103,6 +104,8 @@ struct task_struct {
   struct sighand_struct *sighand;
   struct signal_struct *signal;
   unsigned long flags;
+
+  struct files_struct *files;
 };
 
 struct user_regs_struct {

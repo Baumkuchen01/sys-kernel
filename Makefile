@@ -21,7 +21,8 @@ all:
 	$(MAKE) -C lib all
 	$(MAKE) -C user all
 	$(MAKE) -C arch/riscv all
-	$(LD) -T arch/riscv/kernel/vmlinux.lds user/uapp.o arch/riscv/kernel/*.o lib/*.o -o vmlinux
+	$(MAKE) -C fs all
+	$(LD) -T arch/riscv/kernel/vmlinux.lds user/uapp.o arch/riscv/kernel/*.o lib/*.o fs/*.o -o vmlinux
 	mkdir -p arch/riscv/boot
 	$(OBJCOPY) -O binary vmlinux arch/riscv/boot/Image
 	$(OBJDUMP) -S vmlinux > vmlinux.asm

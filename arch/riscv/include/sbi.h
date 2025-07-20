@@ -24,4 +24,7 @@ struct sbiret {
 struct sbiret sbi_ecall(uint64_t eid, uint64_t fid,
                         uint64_t arg0, uint64_t arg1, uint64_t arg2,
                         uint64_t arg3, uint64_t arg4, uint64_t arg5);
+
+struct sbiret sbi_debug_console_read(uint64_t num_bytes, uint64_t base_addr_lo, uint64_t base_addr_hi);
+
 #endif

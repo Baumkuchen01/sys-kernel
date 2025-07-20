@@ -11,4 +11,6 @@ size_t strlen(const char *s);
 
 size_t strnlen(const char *s, size_t maxlen);
 
+int memcmp(const void *s1, const void *s2, size_t n);
+
 #endif

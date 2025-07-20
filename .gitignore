@@ -7,4 +7,6 @@
 vmlinux
 System.map
 arch/riscv/boot/Image
+.vscode/
+.idea/
 
