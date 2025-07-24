@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 // define some tests
 #define PFH1 1001
@@ -331,33 +332,33 @@ void parse_cmd(char *cmd, int len) {
         cmd += len;
         write(1, echo_content, len);
         write(1, "\n", 1);
-    // } else if (cmd[0] == 'c' && cmd[1] == 'a' && cmd[2] == 't') {
-    //     char *filename = get_param(cmd + 3);
-    //     char last_char;
-    //     int fd = open(filename, O_RDONLY);
-    //     if (fd == -1) {
-    //         printf("can't open file: %s\n", filename);
-    //         return;
-    //     }
-    //     char cat_buf[CAT_BUF_SIZE];
-    //     while (1) {
-    //         int num_chars = read(fd, cat_buf, CAT_BUF_SIZE);
-    //         if (num_chars == 0) {
-    //             if (last_char != '\n') {
-    //                 printf("$\n");
-    //             }
-    //             break;
-    //         }
-    //         for (int i = 0; i < num_chars; i++) {
-    //             if (cat_buf[i] == 0) {
-    //                 write(1, "x", 1);
-    //             } else {
-    //                 write(1, &cat_buf[i], 1);
-    //             }
-    //             last_char = cat_buf[i];
-    //         }
-    //     }
-    //     close(fd);
+    } else if (cmd[0] == 'c' && cmd[1] == 'a' && cmd[2] == 't') {
+        char *filename = get_param(cmd + 3);
+        char last_char;
+        int fd = open(filename, O_RDONLY);
+        if (fd == -1) {
+            printf("can't open file: %s\n", filename);
+            return;
+        }
+        char cat_buf[CAT_BUF_SIZE];
+        while (1) {
+            int num_chars = read(fd, cat_buf, CAT_BUF_SIZE);
+            if (num_chars == 0) {
+                if (last_char != '\n') {
+                    printf("$\n");
+                }
+                break;
+            }
+            for (int i = 0; i < num_chars; i++) {
+                if (cat_buf[i] == 0) {
+                    write(1, "x", 1);
+                } else {
+                    write(1, &cat_buf[i], 1);
+                }
+                last_char = cat_buf[i];
+            }
+        }
+        close(fd);
     // } else if (cmd[0] == 'e' && cmd[1] == 'd' && cmd[2] == 'i' && cmd[3] == 't' ) {
     //     cmd += 4;
     //     while (*cmd == ' ' && *cmd != '\0') {

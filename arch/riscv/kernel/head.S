@@ -17,6 +17,9 @@ _start:
     call setup_vm_final
     call task_init
 
+    call virtio_dev_init
+    call mbr_init
+
     # 1. 将 stvec 设置为 _traps
     la t0, _traps
     csrw stvec, t0

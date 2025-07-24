@@ -32,12 +32,18 @@ all:
 SPIKE_CONF := $(realpath $(CURDIR)/../../../repo/sys-project/spike)
 
 run: all
-	# Launch the qemu ......
-	qemu-system-riscv64 -nographic -machine virt -kernel vmlinux -bios $(SPIKE_CONF)/fw_jump.bin
+	@echo Launch qemu...
+	@qemu-system-riscv64 -nographic -machine virt -kernel vmlinux -bios default \
+		-global virtio-mmio.force-legacy=false \
+		-drive file=disk.img,if=none,format=raw,id=hd0 \
+		-device virtio-blk-device,drive=hd0
 
 debug: all
-	# Launch the qemu for debug ......
-	qemu-system-riscv64 -nographic -machine virt -kernel vmlinux -bios $(SPIKE_CONF)/fw_jump.bin -S -s
+	@echo Launch qemu for debug...
+	@qemu-system-riscv64 -nographic -machine virt -kernel vmlinux -bios default \
+		-global virtio-mmio.force-legacy=false \
+		-drive file=disk.img,if=none,format=raw,id=hd0 \
+		-device virtio-blk-device,drive=hd0 -S -s
 
 SNPRINTF_TEST_DIR := $(realpath $(CURDIR)/../../../repo/sys-project/testcode/snprintf)
 SNPRINTF_MAKEFILE := $(CURDIR)/lib/Makefile

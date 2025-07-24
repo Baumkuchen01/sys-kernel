@@ -7,6 +7,7 @@
 #include <sbi.h>
 #include <string.h>
 #include <signal.h>
+#include <open.h>
 
 #define MAX_READ_SIZE 256
 
@@ -40,6 +41,12 @@ void syscall_handler(struct pt_regs *regs) {
             break;
         case __NR_rt_sigreturn:
             sys_rt_sigreturn(regs);
+            break;
+        case __NR_openat:
+            regs->x[10] = sys_openat((int)regs->x[10], (const char *)regs->x[11], (int)regs->x[12]);
+            break;
+        case __NR_close:
+            regs->x[10] = sys_close((int)regs->x[10]);
             break;
         default:
             printk("Unknown syscall: %lu\n", syscall_num);
@@ -151,7 +158,6 @@ long sys_sigaction(int signum, const struct sigaction *act, struct sigaction *ol
         sigdelsetmask(&newact->sa_mask, sigmask(SIGKILL) | sigmask(SIGSTOP));
         *k = *newact;
     }
-
     return 0;
 }
 

@@ -21,7 +21,7 @@ void *memcpy(void *restrict dst, const void *restrict src, size_t n)
   for (size_t i = 0; i < n; i++) {
     d[i] = s[i];
   }
-  
+
   return dst;
 }
 
@@ -42,4 +42,12 @@ size_t strlen(const char *str) {
     while (*str++)
         len++;
     return len;
+}
+
+char *strcpy(char *restrict dst, const char *restrict src) {
+    char *d = dst;
+    const char *s = src;
+
+    while ((*d++ = *s++) != '\0');
+    return dst;
 }

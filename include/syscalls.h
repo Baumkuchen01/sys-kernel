@@ -11,5 +11,8 @@
 #define __NR_rt_sigaction 134
 #define __NR_kill 129
 #define __NR_rt_sigreturn 139
+#define __NR_openat 56
+#define __NR_close 57
+#define __NR_lseek 62
 
 #endif
