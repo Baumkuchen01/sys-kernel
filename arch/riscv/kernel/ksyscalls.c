@@ -48,6 +48,9 @@ void syscall_handler(struct pt_regs *regs) {
         case __NR_close:
             regs->x[10] = sys_close((int)regs->x[10]);
             break;
+        case __NR_lseek:
+            regs->x[10] = sys_lseek((int)regs->x[10], (int)regs->x[11], (int)regs->x[12]);
+            break;
         default:
             printk("Unknown syscall: %lu\n", syscall_num);
             break;
@@ -55,19 +58,22 @@ void syscall_handler(struct pt_regs *regs) {
 }
 
 long sys_write(unsigned fd, const char *buf, size_t len) {
+    if (fd < 0 || fd >= MAX_FILE_NUMBER) {
+        printk("Invalid file descriptor: %d\n", fd);
+        return -1;
+    }
+
     int64_t ret;
     struct file *file = &(current->files->fd_array[fd]);
     if (file->opened == 0) {
         printk("file not opened\n");
         return ERROR_FILE_NOT_OPEN;
     } else {
-        // check perms and call write function of file
         if (file->perms & FILE_WRITABLE) {
             if (file->write) {
                 ret = file->write(file, buf, len);
             } else {
                 printk("File write function not implemented\n");
-                // return ERROR_FILE_NOT_IMPLEMENTED;
             }
         } else {
             printk("File not writable\n");
@@ -120,13 +126,17 @@ long sys_brk(unsigned long brk) {
 }
 
 long sys_read(unsigned fd, char *buf, size_t count) {
+    if (fd < 0 || fd >= MAX_FILE_NUMBER) {
+        printk("Invalid file descriptor: %d\n", fd);
+        return -1;
+    }
+
     int64_t ret;
     struct file *file = &(current->files->fd_array[fd]);
     if (file->opened == 0) {
         printk("file not opened\n");
         return ERROR_FILE_NOT_OPEN;
     } else {
-        // check perms and call read function of file
         if (file->perms & FILE_READABLE) {
             if (file->read) {
                 ret = file->read(file, buf, count);

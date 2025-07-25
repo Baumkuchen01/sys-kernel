@@ -1,5 +1,5 @@
 T ?= FILE_SYSTEM
-CPPFLAGS += -I$(CURDIR)/include -DUSER_MAIN=$(T)
+CPPFLAGS := -I$(CURDIR)/include -DUSER_MAIN=$(T) $(CPPFLAGS)
 
 C_SRC := $(wildcard src/*.c) $(wildcard ../lib/*.c)
 ASM_SRC := $(wildcard src/*.S) $(wildcard ../lib/*.S)

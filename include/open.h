@@ -4,5 +4,6 @@
 int sys_open(const char *pathname, int flags);
 int sys_openat(int dirfd, const char *pathname, int flags);
 int sys_close(int fd);
+int lseek(int fd, int offset, int whence);
 
 #endif // __OPEN_H__

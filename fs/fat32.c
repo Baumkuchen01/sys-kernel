@@ -69,7 +69,7 @@ struct fat32_file fat32_open_file(const char *path) {
 
     const char *filename = path + 7;
 
-    char upper_filename[256];
+    char upper_filename[MAX_PATH_LENGTH];
     strcpy(upper_filename, filename);
     to_upper_case(upper_filename);
 
@@ -107,17 +107,13 @@ struct fat32_file fat32_open_file(const char *path) {
                 memcpy(entry_name, entries[i].name, 11);
                 entry_name[11] = '\0';
                 
-                // Remove trailing spaces and format as "NAME.EXT"
                 char formatted_name[13];
                 int j = 0;
-                // Copy name part (first 8 chars)
                 for (int k = 0; k < 8 && entries[i].name[k] != ' '; k++) {
                     formatted_name[j++] = entries[i].name[k];
                 }
-                // Add dot if extension exists
                 if (entries[i].name[8] != ' ') {
                     formatted_name[j++] = '.';
-                    // Copy extension part (last 3 chars)
                     for (int k = 8; k < 11 && entries[i].name[k] != ' '; k++) {
                         formatted_name[j++] = entries[i].name[k];
                     }
@@ -140,12 +136,16 @@ struct fat32_file fat32_open_file(const char *path) {
 
 int64_t fat32_lseek(struct file* file, int64_t offset, uint64_t whence) {
     if (whence == SEEK_SET) {
-        file->cfo = 0/* to calculate */;
+        file->cfo = offset;
     } else if (whence == SEEK_CUR) {
-        file->cfo = 0/* to calculate */;
+        file->cfo += offset;
     } else if (whence == SEEK_END) {
-        /* Calculate file length */
-        file->cfo = 0/* to calculate */;
+        struct fat32_file *fat32_file = &file->fat32_file;
+        uint64_t dir_sector = cluster_to_sector(fat32_file->dir.cluster);
+        virtio_blk_read_sector(dir_sector, fat32_buf);
+        struct fat32_dir_entry *dir_entries = (struct fat32_dir_entry *)fat32_buf;
+        uint32_t file_size = dir_entries[fat32_file->dir.index].size;
+        file->cfo = file_size + offset;
     } else {
         printk("fat32_lseek: whence not implemented\n");
         while (1);
@@ -215,5 +215,57 @@ int64_t fat32_read(struct file* file, void* buf, uint64_t len) {
 
 int64_t fat32_write(struct file* file, const void* buf, uint64_t len) {
     /* todo: fat32_write */
-    return 0;
+    struct fat32_file *fat32_file = &file->fat32_file;
+    uint64_t bytes_written = 0;
+    uint64_t remaining = len;
+    uint32_t current_cluster = fat32_file->cluster;
+    uint64_t file_offset = file->cfo;
+    uint64_t cluster_size = fat32_volume.sec_per_cluster * VIRTIO_BLK_SECTOR_SIZE;
+
+    uint64_t dir_sector = cluster_to_sector(fat32_file->dir.cluster);
+    virtio_blk_read_sector(dir_sector, fat32_buf);
+    struct fat32_dir_entry *dir_entries = (struct fat32_dir_entry *)fat32_buf;
+    uint32_t file_size = dir_entries[fat32_file->dir.index].size;
+    
+    if (file_offset >= file_size) {
+        return 0;
+    }
+    if (file_offset + len > file_size) {
+        remaining = file_size - file_offset;
+        len = remaining;
+    }
+
+    uint64_t clusters_to_skip = file_offset / cluster_size;
+    for (uint64_t i = 0; i < clusters_to_skip && current_cluster < 0x0FFFFFF8; i++) {
+        current_cluster = next_cluster(current_cluster);
+    }
+
+    uint64_t offset_in_cluster = file_offset % cluster_size;
+
+    while (remaining > 0 && current_cluster < 0x0FFFFFF8) {
+        uint64_t sector = cluster_to_sector(current_cluster);
+        uint64_t sector_offset = offset_in_cluster / VIRTIO_BLK_SECTOR_SIZE;
+        uint64_t byte_offset_in_sector = offset_in_cluster % VIRTIO_BLK_SECTOR_SIZE;
+        
+        for (uint64_t sec = sector_offset; sec < fat32_volume.sec_per_cluster && remaining > 0; sec++) {
+            virtio_blk_read_sector(sector + sec, fat32_buf);
+            
+            uint64_t bytes_to_copy = VIRTIO_BLK_SECTOR_SIZE - byte_offset_in_sector;
+            if (bytes_to_copy > remaining) {
+                bytes_to_copy = remaining;
+            }
+
+            memcpy(fat32_buf + byte_offset_in_sector, (uint8_t*)buf + bytes_written, bytes_to_copy);
+            virtio_blk_write_sector(sector + sec, fat32_buf);
+            bytes_written += bytes_to_copy;
+            remaining -= bytes_to_copy;
+            byte_offset_in_sector = 0;
+        }
+        
+        offset_in_cluster = 0;
+        current_cluster = next_cluster(current_cluster);
+    }
+
+    file->cfo += bytes_written;
+    return bytes_written;
 }

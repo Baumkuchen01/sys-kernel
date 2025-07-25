@@ -359,50 +359,50 @@ void parse_cmd(char *cmd, int len) {
             }
         }
         close(fd);
-    // } else if (cmd[0] == 'e' && cmd[1] == 'd' && cmd[2] == 'i' && cmd[3] == 't' ) {
-    //     cmd += 4;
-    //     while (*cmd == ' ' && *cmd != '\0') {
-    //         cmd++;
-    //     }
-    //     char* temp = get_param(cmd);
-    //     int len = strlen(temp); 
-    //     char filename[len + 1];
-    //     for (int i = 0; i < len; i++) {
-    //         filename[i] = temp[i];
-    //     }
-    //     filename[len] = '\0';
-    //     cmd += len;
+    } else if (cmd[0] == 'e' && cmd[1] == 'd' && cmd[2] == 'i' && cmd[3] == 't' ) {
+        cmd += 4;
+        while (*cmd == ' ' && *cmd != '\0') {
+            cmd++;
+        }
+        char* temp = get_param(cmd);
+        int len = strlen(temp); 
+        char filename[len + 1];
+        for (int i = 0; i < len; i++) {
+            filename[i] = temp[i];
+        }
+        filename[len] = '\0';
+        cmd += len;
 
-    //     while (*cmd == ' ' && *cmd != '\0') {
-    //         cmd++;
-    //     }
-    //     temp = get_param(cmd);
-    //     len = strlen(temp);
-    //     char offset[len + 1];
-    //     for (int i = 0; i < len; i++) {
-    //         offset[i] = temp[i];
-    //     }
-    //     offset[len] = '\0';
-    //     cmd += len;
+        while (*cmd == ' ' && *cmd != '\0') {
+            cmd++;
+        }
+        temp = get_param(cmd);
+        len = strlen(temp);
+        char offset[len + 1];
+        for (int i = 0; i < len; i++) {
+            offset[i] = temp[i];
+        }
+        offset[len] = '\0';
+        cmd += len;
 
-    //     while (*cmd == ' ' && *cmd != '\0') {
-    //         cmd++;
-    //     }
-    //     temp = get_string(cmd);
-    //     len = strlen(temp);
-    //     char content[len + 1];
-    //     for (int i = 0; i < len; i++) {
-    //         content[i] = temp[i];
-    //     }
-    //     content[len] = '\0';
-    //     cmd += len;
+        while (*cmd == ' ' && *cmd != '\0') {
+            cmd++;
+        }
+        temp = get_string(cmd);
+        len = strlen(temp);
+        char content[len + 1];
+        for (int i = 0; i < len; i++) {
+            content[i] = temp[i];
+        }
+        content[len] = '\0';
+        cmd += len;
 
-    //     int offset_int = atoi(offset);
+        int offset_int = atoi(offset);
 
-    //     int fd = open(filename, O_RDWR);
-    //     lseek(fd, offset_int, SEEK_SET);
-    //     write(fd, content, len);
-    //     close(fd);
+        int fd = open(filename, O_RDWR);
+        lseek(fd, offset_int, SEEK_SET);
+        write(fd, content, len);
+        close(fd);
     } else {
         printf("command not found: %s\n", cmd);
     }

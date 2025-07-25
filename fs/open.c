@@ -63,3 +63,23 @@ int sys_close(int fd) {
 
     return 0;
 }
+
+int sys_lseek(int fd, int offset, int whence) {
+    if (fd < 0 || fd >= MAX_FILE_NUMBER) {
+        printk("Invalid file descriptor: %d\n", fd);
+        return -1;
+    }
+
+    struct file *file = &(current->files->fd_array[fd]);
+    if (!file->opened) {
+        printk("File descriptor %d is not opened\n", fd);
+        return -1;
+    }
+
+    if (file->lseek) {
+        return file->lseek(file, offset, whence);
+    } else {
+        printk("File lseek function not implemented\n");
+        return -1;
+    }
+}
