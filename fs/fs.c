@@ -71,7 +71,7 @@ int32_t file_open(struct file* file, const char* path, int flags) {
         if (file->fat32_file.cluster == 0) {
             return -1;
         }
-
+        return 0;
     } else if (file->fs_type == FS_TYPE_EXT2) {
         printk(RED "Unsupport ext2\n" CLEAR);
         return -1;

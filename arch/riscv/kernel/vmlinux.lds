@@ -52,6 +52,7 @@ SECTIONS
     .data : ALIGN(0x1000) {
         _sdata = .;
 
+        *(.sdata .sdata.*)
         *(.data .data.*)
         *(.got .got.*)
 

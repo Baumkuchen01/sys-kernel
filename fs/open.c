@@ -17,7 +17,7 @@ int get_unused_fd() {
     return -1;
 }
 
-int sys_openat(int dirfd, const char *pathname, int flags) {
+long sys_openat(int dirfd, const char *pathname, int flags) {
     if (dirfd != AT_FDCWD) {
         printk("openat: dirfd != AT_FDCWD is not supported\n");
         return -1;
@@ -25,7 +25,7 @@ int sys_openat(int dirfd, const char *pathname, int flags) {
     return sys_open(pathname, flags);
 }
 
-int sys_open(const char *pathname, int flags) {
+long sys_open(const char *pathname, int flags) {
     int fd = get_unused_fd();
     if (fd < 0) {
         printk("No available file descriptor\n");
@@ -42,7 +42,7 @@ int sys_open(const char *pathname, int flags) {
     return fd;
 }
 
-int sys_close(int fd) {
+long sys_close(int fd) {
     if (fd < 0 || fd >= MAX_FILE_NUMBER) {
         printk("Invalid file descriptor: %d\n", fd);
         return -1;
@@ -64,7 +64,7 @@ int sys_close(int fd) {
     return 0;
 }
 
-int sys_lseek(int fd, int offset, int whence) {
+long sys_lseek(int fd, int offset, int whence) {
     if (fd < 0 || fd >= MAX_FILE_NUMBER) {
         printk("Invalid file descriptor: %d\n", fd);
         return -1;

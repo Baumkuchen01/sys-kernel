@@ -146,7 +146,7 @@ int sys_openat(int dfd, char *filename, int flags) {
                   "mv a2, %4\n"
                   "ecall\n"
                   "mv %0, a0\n"
-                  : "+r" (syscall_ret)
+                  : "=r" (syscall_ret)
                   : "i" (__NR_openat), "r" ((int64_t)dfd), "r" (filename), "r" ((int64_t)flags));
     return syscall_ret;
 }
@@ -161,7 +161,7 @@ int close(int fd) {
                   "mv a0, %2\n"
                   "ecall\n"
                   "mv %0, a0\n"
-                  : "+r" (syscall_ret)
+                  : "=r" (syscall_ret)
                   : "i" (__NR_close), "r" ((int64_t)fd));
     return syscall_ret;
 }
@@ -174,7 +174,7 @@ int lseek(int fd, int offset, int whence) {
                   "mv a2, %4\n"
                   "ecall\n"
                   "mv %0, a0\n"
-                  : "+r" (syscall_ret)
+                  : "=r" (syscall_ret)
                   : "i" (__NR_lseek), "r" ((int64_t)fd), "r" ((int64_t)offset), "r" ((int64_t)whence));
     return syscall_ret;
 }

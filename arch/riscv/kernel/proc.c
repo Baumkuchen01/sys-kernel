@@ -6,6 +6,7 @@
 #include <sbi.h>
 #include <vm.h>
 #include <string.h>
+#include <elf.h>
 
 extern uint64_t swapper_pg_dir[];
 extern uint8_t _suapp[], _euapp[];
@@ -35,6 +36,33 @@ void dummy_task(void) {
       // printk("[P=%u] %u\n", current->pid, ++local);
     }
   }
+}
+
+void load_program(struct task_struct *task) {
+    Elf64_Ehdr *ehdr = (Elf64_Ehdr *)_suapp;
+    Elf64_Phdr *phdrs = (Elf64_Phdr *)(_suapp + ehdr->e_phoff);
+    for (int i = 0; i < ehdr->e_phnum; ++i) {
+        Elf64_Phdr *phdr = phdrs + i;
+        if (phdr->p_type == PT_LOAD) {
+            // alloc space and copy content
+            // do mapping
+            // code...
+            uint64_t flags = 0;
+            if (phdr->p_flags & PF_R) {
+                flags |= VM_READ;
+            }
+            if (phdr->p_flags & PF_W) {
+                flags |= VM_WRITE;
+            }
+            if (phdr->p_flags & PF_X) {
+                flags |= VM_EXEC;
+            }
+            do_mmap(task->mm, phdr->p_vaddr, phdr->p_memsz, phdr->p_offset, phdr->p_filesz, flags);
+            printk("Load program: p_vaddr = 0x%lx, p_memsz = 0x%lx, p_offset = 0x%lx, p_filesz = 0x%lx, flags = 0x%lx\n",
+                   phdr->p_vaddr, phdr->p_memsz, phdr->p_offset, phdr->p_filesz, flags);
+          }
+    }
+    task->thread.sepc = ehdr->e_entry;
 }
 
 void task_init(void){
@@ -70,13 +98,17 @@ void task_init(void){
   for (int i = 1; i <= task_num; i++)
   {
     task[i] = (struct task_struct *)alloc_page();
+    task[i]->mm = (struct mm_struct *)alloc_page();
+    task[i]->mm->mmap = NULL;
+    load_program(task[i]);
+
     task[i]->state = TASK_RUNNING;
     task[i]->pid = i;
     task[i]->priority = PRIORITY_MIN + rand() % (PRIORITY_MAX - PRIORITY_MIN + 1);
     task[i]->counter = 0;
     task[i]->thread.ra = (uint64_t)__dummy;
     task[i]->thread.sp = (uint64_t)task[i] + PGSIZE;
-    task[i]->thread.sepc = USER_START;
+    // task[i]->thread.sepc = USER_START;
     uint64_t sstatus = csr_read(sstatus);
     sstatus &= ~(1 << 8);
     sstatus |= (1 << 5) | (1 << 18);
@@ -88,17 +120,9 @@ void task_init(void){
 
     task[i]->pgd = (pagetable_t)alloc_page();
     memcpy(task[i]->pgd, swapper_pg_dir, PGSIZE);
-    // uint64_t umode_stack_pa = VA2PA(alloc_page()), umode_stack_va = USER_END - PGSIZE;
-    // vm_create_mapping(task[i]->pgd, (void *)umode_stack_va, (void *)umode_stack_pa, PGSIZE, PTE_R | PTE_W | PTE_U);
+    task[i]->pgd = (pagetable_t)((VA2PA(task[i]->pgd) >> 12) | (8ull << 60));
 
     uint64_t uapp_size = _euapp - _suapp;
-    // void *uapp_copy = alloc_pages((uapp_size - 1) / PGSIZE + 1);
-    // memcpy(uapp_copy, _suapp, uapp_size);
-    // vm_create_mapping(task[i]->pgd, (void *)USER_START, (void *)VA2PA(uapp_copy), uapp_size, PTE_R | PTE_W | PTE_X | PTE_U);
-    task[i]->pgd = (pagetable_t)((VA2PA(task[i]->pgd) >> 12) | (8ull << 60));
-    
-    task[i]->mm = (struct mm_struct *)alloc_page();
-    task[i]->mm->mmap = NULL;
     task[i]->mm->start_brk = task[i]->mm->brk = (unsigned long)PGROUNDUP(USER_START + uapp_size);
     
     struct sighand_struct* sighand = (struct sighand_struct *)alloc_page();
@@ -121,9 +145,9 @@ void task_init(void){
 
     task[i]->files = file_init();
 
-    do_mmap(task[i]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
-    do_mmap(task[i]->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
-    do_mmap(task[i]->mm, (void *)task[i]->mm->start_brk, 0, VM_READ | VM_WRITE | VM_ANON);
+    // do_mmap(task[i]->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
+    do_mmap(task[i]->mm, USER_END - PGSIZE, PGSIZE, 0, 0, VM_READ | VM_WRITE | VM_ANON);
+    do_mmap(task[i]->mm, task[i]->mm->start_brk, 0, 0, 0, VM_READ | VM_WRITE | VM_ANON);
   }
 
   printk("...task_init done!\n");
@@ -170,18 +194,20 @@ void switch_to(struct task_struct *next) {
   }
 }
 
-struct vm_area_struct *find_vma(struct mm_struct *mm, void *va) {
+struct vm_area_struct *find_vma(struct mm_struct *mm, uint64_t va) {
   struct vm_area_struct *vma = mm->mmap;
   while (vma && (vma->vm_start > va || vma->vm_end < va))
     vma = vma->vm_next;
   return vma;
 }
 
-void *do_mmap(struct mm_struct *mm, void *va, size_t len, unsigned flags) {
+uint64_t do_mmap(struct mm_struct *mm, uint64_t addr, uint64_t len, uint64_t vm_pgoff, uint64_t vm_filesz, uint64_t flags) {
   struct vm_area_struct *new_vma = (struct vm_area_struct *)alloc_page();
   new_vma->vm_mm = mm;
-  new_vma->vm_start = va;
-  new_vma->vm_end = (void *)((size_t)va + len);
+  new_vma->vm_start = addr;
+  new_vma->vm_end = addr + len;
+  new_vma->vm_pgoff = vm_pgoff;
+  new_vma->vm_filesz = vm_filesz;
   new_vma->vm_flags = flags;
   new_vma->vm_prev = NULL;
   new_vma->vm_next = mm->mmap;
@@ -189,7 +215,7 @@ void *do_mmap(struct mm_struct *mm, void *va, size_t len, unsigned flags) {
     mm->mmap->vm_prev = new_vma;
   }
   mm->mmap = new_vma;
-  return va;
+  return addr;
 }
 
 uint64_t *walk_page_table(uint64_t *pgd, uint64_t va) {
@@ -210,7 +236,7 @@ uint64_t *walk_page_table(uint64_t *pgd, uint64_t va) {
 
 long do_fork(struct pt_regs *regs) {
   long pid = ++task_num;
-  printk("do_fork: %ld -> %ld\n", current->pid, pid);
+  // printk("do_fork: %ld -> %ld\n", current->pid, pid);
   struct task_struct *child = (struct task_struct *)alloc_page();
   child->state = TASK_RUNNING;
   child->pid = pid;
@@ -226,9 +252,6 @@ long do_fork(struct pt_regs *regs) {
   }
   memcpy((void *)child->thread.sp, (void *)regs, (uint64_t)current + PGSIZE - (uint64_t)regs);
   struct pt_regs *pt_regs_child = (struct pt_regs *)child->thread.sp;
-  // for (int i = 0; i < 32; i++) {
-  //     pt_regs_child->x[i] = regs->x[i];
-  // }
   pt_regs_child->x[2] = regs->x[2];
   pt_regs_child->x[10] = 0;
   pt_regs_child->sepc = regs->sepc + 4;
@@ -254,6 +277,8 @@ long do_fork(struct pt_regs *regs) {
     mmap_child->vm_mm = child->mm;
     mmap_child->vm_start = mmap_parent->vm_start;
     mmap_child->vm_end = mmap_parent->vm_end;
+    mmap_child->vm_pgoff = mmap_parent->vm_pgoff;
+    mmap_child->vm_filesz = mmap_parent->vm_filesz;
     mmap_child->vm_flags = mmap_parent->vm_flags;
     mmap_child->vm_prev = NULL;
     mmap_child->vm_next = child->mm->mmap;
@@ -264,14 +289,9 @@ long do_fork(struct pt_regs *regs) {
     mmap_parent = mmap_parent->vm_next;
   }
   
-  // uint64_t uapp_size = _euapp - _suapp;
-  // do_mmap(child->mm, (void *)USER_START, uapp_size, VM_READ | VM_WRITE | VM_EXEC);
-  // do_mmap(child->mm, (void *)USER_END - PGSIZE, PGSIZE, VM_READ | VM_WRITE | VM_ANON);
-  
   pagetable_t pgtbl_parent = (pagetable_t)((((uint64_t)current->pgd & 0xfffffffffff) << 12) + PA2VA_OFFSET);
   mmap_parent = current->mm->mmap;
   child->pgd = (pagetable_t)alloc_page();
-  // memcpy((void *)child->pgd, (void *)pgtbl_parent, PGSIZE);
   memcpy((void *)child->pgd, (void *)swapper_pg_dir, PGSIZE);
 
   while (mmap_parent) {
@@ -295,6 +315,11 @@ long do_fork(struct pt_regs *regs) {
 
   child->mm->start_brk = current->mm->start_brk;
   child->mm->brk = current->mm->brk;
+
+  child->files = file_init();
+  for (int i = 0; i < MAX_FILE_NUMBER; i++) {
+    child->files->fd_array[i] = current->files->fd_array[i];
+  }
 
   asm volatile("sfence.vma" ::: "memory");
   child->pgd = (pagetable_t)((VA2PA(child->pgd) >> 12) | (8ull << 60));

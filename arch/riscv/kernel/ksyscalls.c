@@ -17,7 +17,7 @@ void syscall_handler(struct pt_regs *regs) {
     unsigned long syscall_num = regs->x[17];
     switch (syscall_num) {
         case __NR_write:
-            regs->x[10] = sys_write((unsigned)regs->x[10], (const char *)regs->x[11], regs->x[12]);
+            regs->x[10] = sys_write((int)regs->x[10], (const char *)regs->x[11], regs->x[12]);
             break;
         case __NR_getpid:
             regs->x[10] = sys_getpid();
@@ -29,7 +29,7 @@ void syscall_handler(struct pt_regs *regs) {
             regs->x[10] = sys_brk((unsigned long)regs->x[10]);
             break;
         case __NR_read:
-            regs->x[10] = sys_read((unsigned)regs->x[10], (char *)regs->x[11], regs->x[12]);
+            regs->x[10] = sys_read((int)regs->x[10], (char *)regs->x[11], regs->x[12]);
             break;
         case __NR_rt_sigaction:
             struct sigaction *act = (struct sigaction *)regs->x[11];
@@ -57,7 +57,7 @@ void syscall_handler(struct pt_regs *regs) {
     }
 }
 
-long sys_write(unsigned fd, const char *buf, size_t len) {
+long sys_write(int fd, const char *buf, size_t len) {
     if (fd < 0 || fd >= MAX_FILE_NUMBER) {
         printk("Invalid file descriptor: %d\n", fd);
         return -1;
@@ -74,6 +74,7 @@ long sys_write(unsigned fd, const char *buf, size_t len) {
                 ret = file->write(file, buf, len);
             } else {
                 printk("File write function not implemented\n");
+                return ERROR_FILE_NOT_IMPLEMENTED;
             }
         } else {
             printk("File not writable\n");
@@ -112,20 +113,20 @@ long sys_brk(unsigned long brk) {
     }
 
     if (newbrk < oldbrk) {
-        struct vm_area_struct* brkvma = find_vma(mm, (void *)oldbrk);
+        struct vm_area_struct* brkvma = find_vma(mm, oldbrk);
         pagetable_t pgtbl = (pagetable_t)((((uint64_t)current->pgd & 0xfffffffffff) << 12) + PA2VA_OFFSET);
         do_vma_munmap(pgtbl, brkvma, newbrk, oldbrk);
         mm->brk = brk;
         return brk;
     } else {
-        struct vm_area_struct* brkvma = find_vma(mm, (void *)oldbrk);
+        struct vm_area_struct* brkvma = find_vma(mm, oldbrk);
         do_vma_mmap(brkvma, newbrk);
         mm->brk = brk;
         return brk;
     }
 }
 
-long sys_read(unsigned fd, char *buf, size_t count) {
+long sys_read(int fd, char *buf, size_t count) {
     if (fd < 0 || fd >= MAX_FILE_NUMBER) {
         printk("Invalid file descriptor: %d\n", fd);
         return -1;
@@ -142,6 +143,7 @@ long sys_read(unsigned fd, char *buf, size_t count) {
                 ret = file->read(file, buf, count);
             } else {
                 printk("File read function not implemented\n");
+                return ERROR_FILE_NOT_IMPLEMENTED;
             }
         } else {
             printk("File not readable\n");

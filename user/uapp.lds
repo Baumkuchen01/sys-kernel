@@ -1,38 +1,32 @@
 OUTPUT_ARCH("riscv")
-
 ENTRY(_start)
+
+PHDRS
+{
+    text_segment PT_LOAD FLAGS(5) ;
+    data_segment PT_LOAD FLAGS(6) ;
+}
 
 SECTIONS
 {
     . = 0;
 
-    .text : {
+    .text : ALIGN(0x1000) {
         *(.text.init)
         *(.text .text.*)
-    }
+    } :text_segment
 
-    .rodata : {
+    .rodata : ALIGN(0x1000) {
         *(.rodata .rodata*)
-    }
+    } :text_segment
 
-    .data : {
+    .data : ALIGN(0x1000) {
+        *(.sdata .sdata.*)
         *(.data .data.*)
+    } :data_segment
 
-        /*
-         * Note for next year TAs, from 45gfg9:
-         *
-         * Currently we can't use a dedicated section for .bss. They don't
-         * take up space in the stripped binary, so when uapp is mapped,
-         * attempts to access them will cause a page fault.
-         *
-         * Adding .bss to .data section will force them to take up space
-         * in the binary. This is a workaround for the issue.
-         *
-         * If you know what I'm talking about, then introduce ELF parser
-         * to the kernel and fix this issue, just like OS courses do.
-         * See https://zju-sec.github.io/os24fall-stu/lab4/#elf_1
-         */
+    .bss : ALIGN(0x1000) {
         *(.sbss .sbss.*)
         *(.bss .bss.*)
-    }
+    } :data_segment
 }

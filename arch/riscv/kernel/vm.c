@@ -3,7 +3,7 @@
 #include <mm.h>
 #include <private_kdefs.h>
 #include <printk.h>
-#include "virtio.h"
+#include <virtio.h>
 
 extern uint8_t _stext[], _stext_end[], _srodata[], _sdata[], _sbss[];
 
@@ -40,7 +40,7 @@ void setup_vm_final(void) {
   create_mapping(swapper_pg_dir, _stext, (void *)((uint64_t)_stext - PA2VA_OFFSET), (uint64_t)_srodata - (uint64_t)_stext,  PTE_R | PTE_X);
   create_mapping(swapper_pg_dir, _srodata, (void *)((uint64_t)_srodata - PA2VA_OFFSET), (uint64_t)_sdata - (uint64_t)_srodata,  PTE_R);
   create_mapping(swapper_pg_dir, _sdata, (void *)((uint64_t)_sdata - PA2VA_OFFSET), PHY_SIZE - ((uint64_t)_sdata - (uint64_t)_stext),  PTE_R | PTE_W);
-  create_mapping(swapper_pg_dir, io_to_virt(VIRTIO_START), VIRTIO_START, VIRTIO_SIZE * VIRTIO_COUNT, PTE_W | PTE_R | PTE_V);
+  create_mapping(swapper_pg_dir, (void *)io_to_virt(VIRTIO_START), (void *)VIRTIO_START, VIRTIO_SIZE * VIRTIO_COUNT, PTE_W | PTE_R | PTE_V);
 
   uint64_t satp = (((uint64_t)swapper_pg_dir - PA2VA_OFFSET) >> 12) | (8ull << 60);
   asm volatile("csrw satp, %0" : : "r"(satp) : "memory");

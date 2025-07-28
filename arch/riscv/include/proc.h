@@ -47,23 +47,26 @@ struct vm_area_struct {
   /**
    * @brief Our start address within vm_mm.
    */
-  void *vm_start;
+  uint64_t vm_start;
 
   /**
    * @brief The past-the-end address within vm_mm.
    */
-  void *vm_end;
+  uint64_t vm_end;
 
   /**
    * @brief Flags as listed above.
    */
-  unsigned vm_flags;
+  uint64_t vm_flags;
 
   /**
    * @brief linked list of VM areas per task, sorted by address.
    */
   struct vm_area_struct *vm_prev;
   struct vm_area_struct *vm_next;
+
+  uint64_t vm_pgoff;          // 如果对应了一个文件，那么这块 VMA 起始地址对应的文件内容相对文件起始位置的偏移量
+  uint64_t vm_filesz;         // 对应的文件内容的长度
 };
 
 struct mm_struct {
@@ -154,7 +157,7 @@ void dummy_task(void);
  *
  * @return va 所在的 vm_area_struct 结构体指针，若未找到则返回 NULL
  */
-struct vm_area_struct *find_vma(struct mm_struct *mm, void *va);
+struct vm_area_struct *find_vma(struct mm_struct *mm, uint64_t va);
 
 /**
  * @brief 向 mm 中添加一个 vm_area_struct
@@ -166,7 +169,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, void *va);
  *
  * @return 该映射的起始地址
  */
-void *do_mmap(struct mm_struct *mm, void *va, size_t len, unsigned flags);
+uint64_t do_mmap(struct mm_struct *mm, uint64_t addr, uint64_t len, uint64_t vm_pgoff, uint64_t vm_filesz, uint64_t flags);
 long do_fork(struct pt_regs *regs);
 uint64_t *walk_page_table(uint64_t *pgd, uint64_t va);
 struct task_struct *find_task_by_pid(pid_t pid);

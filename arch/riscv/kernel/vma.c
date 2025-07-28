@@ -4,7 +4,6 @@
 #include <vm.h>
 #include <string.h>
 
-void vm_remove_mapping(pagetable_t pgtbl, unsigned long addr);
 void unmap_page(pagetable_t pgtbl, unsigned long start, unsigned long end) {
     for (unsigned long va = start; va < end; va += PGSIZE) {
         uint64_t *pte_addr = walk_page_table(pgtbl, va);
@@ -23,10 +22,10 @@ void unmap_page(pagetable_t pgtbl, unsigned long start, unsigned long end) {
     asm volatile("sfence.vma" ::: "memory");
 }
 void do_vma_munmap(pagetable_t pgtbl, struct vm_area_struct *vma, unsigned long start, unsigned long end) {
-    vma->vm_end = (void *)end;
+    vma->vm_end = end;
     unmap_page(pgtbl, start, end);
 }
 
 void do_vma_mmap(struct vm_area_struct *vma, unsigned long end) {
-    vma->vm_end = (void *)end;
+    vma->vm_end = end;
 }

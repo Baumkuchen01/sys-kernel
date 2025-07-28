@@ -13,7 +13,7 @@ extern uint8_t _suapp[];
 void clock_set_next_event(void);
 
 static void do_page_fault(uint64_t scause, uint64_t stval) {
-  struct vm_area_struct *vma = find_vma(current->mm, (void *)stval);
+  struct vm_area_struct *vma = find_vma(current->mm, stval);
   if (vma == NULL) {
     printk("Page fault: no vma found for address %p\n", (void *)stval);
     return;
@@ -50,7 +50,15 @@ static void do_page_fault(uint64_t scause, uint64_t stval) {
     void *new_page = alloc_page(), *aligned_addr = (void *)PGROUNDDOWN(stval);
     vm_create_mapping(pgtbl, aligned_addr, (void *)VA2PA(new_page), PGSIZE, (vma->vm_flags << 1) | PTE_U);
     if (!(vma->vm_flags & VM_ANON)) {
-      memcpy(aligned_addr, (void *)((uint64_t)_suapp + aligned_addr), PGSIZE);
+      // memcpy(aligned_addr, (void *)((uint64_t)_suapp + aligned_addr), PGSIZE);
+      memcpy(new_page, (void *)((uint64_t)_suapp + vma->vm_pgoff + aligned_addr - vma->vm_start), PGSIZE);
+      // printk("copy %p to %p\n", (void *)((uint64_t)_suapp + vma->vm_pgoff + aligned_addr - vma->vm_start), aligned_addr);
+      // if (vma->vm_start + vma->vm_filesz < (uint64_t)aligned_addr + PGSIZE) {
+      //   memset(aligned_addr + vma->vm_filesz % PGSIZE, 0, PGSIZE - vma->vm_filesz % PGSIZE);
+      // }
+      if ((uint64_t)aligned_addr - vma->vm_start >= vma->vm_filesz) {
+        memset(new_page, 0, PGSIZE);
+      }
     }
     ref_page(new_page);
   }
@@ -138,7 +146,7 @@ void trap_handler(struct pt_regs *regs, uint64_t scause, uint64_t stval) {
     // printk("%ld\n", regs->x[10]);
   }
   else if (scause == 12 || scause == 13 || scause == 15) {
-    char *type = (scause == 12) ? "Instruction" : (scause == 13) ? "Load" : "Store/AMO";
+    // char *type = (scause == 12) ? "Instruction" : (scause == 13) ? "Load" : "Store/AMO";
     // printk("[S] %s Page Fault: sepc = %p, stval = %p\n", type, (void *)regs->sepc, (void *)stval);
     do_page_fault(scause, stval);
   }
